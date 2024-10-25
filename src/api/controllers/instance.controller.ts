@@ -113,7 +113,7 @@ export class InstanceController {
 
       const settings: wa.LocalSettings = {
         rejectCall: instanceData.rejectCall === true,
-        msgCall: instanceData.msgCall || '',
+        msgCall: instanceData.msgCall || 'Informamos que não atendemos chamadas pelo WhatsApp. Para melhor atendê-lo(a), por favor, envie suas dúvidas por mensagem de texto. Obrigado pela compreensão!',
         groupsIgnore: instanceData.groupsIgnore === true,
         alwaysOnline: instanceData.alwaysOnline === true,
         readMessages: instanceData.readMessages === true,
@@ -382,7 +382,7 @@ export class InstanceController {
       return this.waMonitor.instanceInfoById(instanceId, number);
     }
 
-    return this.waMonitor.instanceInfo();
+    return this.waMonitor.instanceInfo(instanceName);
   }
 
   public async setPresence({ instanceName }: InstanceDto, data: SetPresenceDto) {

@@ -190,7 +190,7 @@ export type Auth = {
 
 export type DelInstance = number | boolean;
 
-export type Language = string | 'en';
+export type Language = string | 'pt-BR';
 
 export type GlobalWebhook = {
   URL: string;
@@ -457,7 +457,7 @@ export class ConfigService {
       DEL_TEMP_INSTANCES: isBooleanString(process.env?.DEL_TEMP_INSTANCES)
         ? process.env.DEL_TEMP_INSTANCES === 'true'
         : true,
-      LANGUAGE: process.env?.LANGUAGE || 'en',
+      LANGUAGE: process.env?.LANGUAGE || 'pt-BR',
       WEBHOOK: {
         GLOBAL: {
           URL: process.env?.WEBHOOK_GLOBAL_URL || '',
@@ -497,7 +497,7 @@ export class ConfigService {
         },
       },
       CONFIG_SESSION_PHONE: {
-        CLIENT: process.env?.CONFIG_SESSION_PHONE_CLIENT || 'Evolution API',
+        CLIENT: process.env?.CONFIG_SESSION_PHONE_CLIENT || 'NutriSmart',
         NAME: process.env?.CONFIG_SESSION_PHONE_NAME || 'Chrome',
         VERSION: process.env?.CONFIG_SESSION_PHONE_VERSION || null,
       },

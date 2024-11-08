@@ -20,8 +20,8 @@ languages.forEach((language) => {
 
 i18next.init({
   resources,
-  fallbackLng: 'en',
-  lng: configService.get<Language>('LANGUAGE'),
+  fallbackLng: 'pt-BR',
+  lng: configService.get<Language>('LANGUAGE') || 'pt-BR',
   debug: false,
 
   interpolation: {

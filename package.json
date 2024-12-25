@@ -67,7 +67,7 @@
     "fluent-ffmpeg": "^2.1.2",
     "form-data": "^4.0.0",
     "https-proxy-agent": "^7.0.2",
-    "i18next": "^23.7.19",
+    "i18next": "^24.0.5",
     "jimp": "^0.16.13",
     "json-schema": "^0.4.0",
     "jsonschema": "^1.4.1",

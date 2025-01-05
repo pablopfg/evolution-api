@@ -62,7 +62,6 @@
     "class-validator": "^0.14.1",
     "compression": "^1.7.5",
     "cors": "^2.8.5",
-    "cuid": "^3.0.0",
     "dayjs": "^1.11.13",
     "dotenv": "^16.4.7",
     "eventemitter2": "^6.4.9",

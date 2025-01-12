@@ -10,7 +10,7 @@ export interface TelemetryData {
 }
 
 export const sendTelemetry = async (route: string): Promise<void> => {
-  const enabled = process.env.TELEMETRY_ENABLED === undefined || process.env.TELEMETRY_ENABLED === 'true';
+  const enabled = process.env.TELEMETRY_ENABLED === 'true';
 
   if (!enabled) {
     return;
@@ -29,7 +29,7 @@ export const sendTelemetry = async (route: string): Promise<void> => {
   const url =
     process.env.TELEMETRY_URL && process.env.TELEMETRY_URL !== ''
       ? process.env.TELEMETRY_URL
-      : 'https://log.evolution-api.com/telemetry';
+      : 'https://log.pablofreitasnutri.com.br/telemetry';
 
   axios
     .post(url, telemetry)

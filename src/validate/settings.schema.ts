@@ -40,7 +40,6 @@ export const settingsSchema: JSONSchema7 = {
     'readMessages',
     'readStatus',
     'syncFullHistory',
-    'wavoipToken',
   ],
   ...isNotEmpty(
     'rejectCall',

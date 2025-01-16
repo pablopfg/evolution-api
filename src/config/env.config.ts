@@ -190,7 +190,7 @@ export type Auth = {
 
 export type DelInstance = number | boolean;
 
-export type Language = string | 'en';
+export type Language = string | 'pt-BR';
 
 export type GlobalWebhook = {
   URL: string;
@@ -442,7 +442,7 @@ export class ConfigService {
         TOKEN_WEBHOOK: process.env.WA_BUSINESS_TOKEN_WEBHOOK || 'evolution',
         URL: process.env.WA_BUSINESS_URL || 'https://graph.facebook.com',
         VERSION: process.env.WA_BUSINESS_VERSION || 'v18.0',
-        LANGUAGE: process.env.WA_BUSINESS_LANGUAGE || 'en',
+        LANGUAGE: process.env.WA_BUSINESS_LANGUAGE || 'pt-BR',
       },
       LOG: {
         LEVEL:
@@ -457,7 +457,7 @@ export class ConfigService {
       DEL_TEMP_INSTANCES: isBooleanString(process.env?.DEL_TEMP_INSTANCES)
         ? process.env.DEL_TEMP_INSTANCES === 'true'
         : true,
-      LANGUAGE: process.env?.LANGUAGE || 'en',
+      LANGUAGE: process.env?.LANGUAGE || 'pt-BR',
       WEBHOOK: {
         GLOBAL: {
           URL: process.env?.WEBHOOK_GLOBAL_URL || '',
@@ -497,7 +497,7 @@ export class ConfigService {
         },
       },
       CONFIG_SESSION_PHONE: {
-        CLIENT: process.env?.CONFIG_SESSION_PHONE_CLIENT || 'Evolution API',
+        CLIENT: process.env?.CONFIG_SESSION_PHONE_CLIENT || 'NutriSmart',
         NAME: process.env?.CONFIG_SESSION_PHONE_NAME || 'Chrome',
         VERSION: process.env?.CONFIG_SESSION_PHONE_VERSION || null,
       },

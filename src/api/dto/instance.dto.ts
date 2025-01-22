@@ -10,6 +10,9 @@ export class InstanceDto extends IntegrationDto {
   integration?: string;
   token?: string;
   status?: string;
+  ownerJid?: string;
+  profileName?: string;
+  profilePicUrl?: string;
   // settings
   rejectCall?: boolean;
   msgCall?: string;

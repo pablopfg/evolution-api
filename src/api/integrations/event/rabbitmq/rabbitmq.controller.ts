@@ -87,7 +87,6 @@ export class RabbitmqController extends EventController implements EventControll
     const rabbitmqLocal = instanceRabbitmq?.events;
     const rabbitmqGlobal = configService.get<Rabbitmq>('RABBITMQ').GLOBAL_ENABLED;
     const rabbitmqEvents = configService.get<Rabbitmq>('RABBITMQ').EVENTS;
-    const prefixKey = configService.get<Rabbitmq>('RABBITMQ').PREFIX_KEY;
     const rabbitmqExchangeName = configService.get<Rabbitmq>('RABBITMQ').EXCHANGE_NAME;
     const we = event.replace(/[.-]/gm, '_').toUpperCase();
     const logEnabled = configService.get<Log>('LOG').LEVEL.includes('WEBHOOKS');
@@ -160,9 +159,7 @@ export class RabbitmqController extends EventController implements EventControll
             autoDelete: false,
           });
 
-          const queueName = prefixKey
-            ? `${prefixKey}.${event.replace(/_/g, '.').toLowerCase()}`
-            : event.replace(/_/g, '.').toLowerCase();
+          const queueName = event;
 
           await this.amqpChannel.assertQueue(queueName, {
             durable: true,
@@ -198,7 +195,6 @@ export class RabbitmqController extends EventController implements EventControll
 
     const rabbitmqExchangeName = configService.get<Rabbitmq>('RABBITMQ').EXCHANGE_NAME;
     const events = configService.get<Rabbitmq>('RABBITMQ').EVENTS;
-    const prefixKey = configService.get<Rabbitmq>('RABBITMQ').PREFIX_KEY;
 
     if (!events) {
       this.logger.warn('No events to initialize on AMQP');
@@ -211,10 +207,7 @@ export class RabbitmqController extends EventController implements EventControll
     eventKeys.forEach((event) => {
       if (events[event] === false) return;
 
-      const queueName =
-        prefixKey !== ''
-          ? `${prefixKey}.${event.replace(/_/g, '.').toLowerCase()}`
-          : `${event.replace(/_/g, '.').toLowerCase()}`;
+      const queueName = `${event.replace(/_/g, '.').toLowerCase()}`;
       const exchangeName = rabbitmqExchangeName;
 
       this.amqpChannel.assertExchange(exchangeName, 'topic', {

@@ -170,6 +170,9 @@ export class InstanceController {
           rabbitmq: {
             enabled: instanceData?.rabbitmq?.enabled,
           },
+          nats: {
+            enabled: instanceData?.nats?.enabled,
+          },
           sqs: {
             enabled: instanceData?.sqs?.enabled,
           },
@@ -227,7 +230,7 @@ export class InstanceController {
           importContacts: instanceData.chatwootImportContacts ?? true,
           mergeBrazilContacts: instanceData.chatwootMergeBrazilContacts ?? false,
           importMessages: instanceData.chatwootImportMessages ?? true,
-          daysLimitImportMessages: instanceData.chatwootDaysLimitImportMessages ?? 60,
+          daysLimitImportMessages: instanceData.chatwootDaysLimitImportMessages ?? 180,
           organization: instanceData.chatwootOrganization,
           logo: instanceData.chatwootLogo,
           autoCreate: instanceData.chatwootAutoCreate !== false,
@@ -258,6 +261,9 @@ export class InstanceController {
         rabbitmq: {
           enabled: instanceData?.rabbitmq?.enabled,
         },
+        nats: {
+          enabled: instanceData?.nats?.enabled,
+        },
         sqs: {
           enabled: instanceData?.sqs?.enabled,
         },
@@ -273,7 +279,7 @@ export class InstanceController {
           mergeBrazilContacts: instanceData.chatwootMergeBrazilContacts ?? false,
           importContacts: instanceData.chatwootImportContacts ?? true,
           importMessages: instanceData.chatwootImportMessages ?? true,
-          daysLimitImportMessages: instanceData.chatwootDaysLimitImportMessages || 60,
+          daysLimitImportMessages: instanceData.chatwootDaysLimitImportMessages || 180,
           number: instanceData.number,
           nameInbox: instanceData.chatwootNameInbox ?? instance.instanceName,
           webhookUrl: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,

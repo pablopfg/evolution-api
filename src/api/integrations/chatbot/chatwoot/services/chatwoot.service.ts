@@ -1100,13 +1100,13 @@ export class ChatwootService {
         const data: SendAudioDto = {
           number: number,
           audio: media,
-          delay: 1200,
+          delay: 1500,
           quoted: options?.quoted,
         };
 
         sendTelemetry('/message/sendWhatsAppAudio');
 
-        const messageSent = await waInstance?.audioWhatsapp(data, true);
+        const messageSent = await waInstance?.audioWhatsapp(data, null, true);
 
         return messageSent;
       }
@@ -1120,7 +1120,7 @@ export class ChatwootService {
         mediatype: type as any,
         fileName: fileName,
         media: media,
-        delay: 1200,
+        delay: 1500,
         quoted: options?.quoted,
       };
 
@@ -1378,7 +1378,7 @@ export class ChatwootService {
             const data: SendTextDto = {
               number: chatId,
               text: formatText,
-              delay: 1200,
+              delay: 1500,
               quoted: await this.getQuotedMessage(body, instance),
             };
 
@@ -1471,7 +1471,7 @@ export class ChatwootService {
         const data: SendTextDto = {
           number: chatId,
           text: body.content.replace(/\\\r\n|\\\n|\n/g, '\n'),
-          delay: 1200,
+          delay: 1500,
         };
 
         sendTelemetry('/message/sendText');
@@ -1898,7 +1898,7 @@ export class ChatwootService {
               .replaceAll(/~((?!\s)([^\n~]+?)(?<!\s))~/g, '~~$1~~')
           : originalMessage;
 
-        if (bodyMessage && bodyMessage.includes('Por favor, classifique esta conversa, http')) {
+        if (bodyMessage && bodyMessage.includes('/survey/responses/') && bodyMessage.includes('http')) {
           return;
         }
 

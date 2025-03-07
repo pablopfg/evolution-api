@@ -1,0 +1,60 @@
+# Dependency Review Action
+#
+# Esta Action analisa arquivos de manifesto de dependências que mudam como parte de um Pull Request,
+# identificando versões vulneráveis conhecidas dos pacotes declarados ou atualizados no PR.
+# Uma vez instalado, se a execução do workflow for marcada como obrigatória, PRs que introduzem
+# pacotes com vulnerabilidades conhecidas serão bloqueados de fazer merge.
+#
+# Repositório fonte: https://github.com/actions/dependency-review-action
+# Documentação pública: https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/about-dependency-review#dependency-review-enforcement
+#
+# Nota: Esta action funciona melhor com GitHub Advanced Security habilitado.
+# Veja: https://docs.github.com/en/get-started/learning-about-github/about-github-advanced-security
+name: 'Revisão de Segurança de Dependências'
+
+on:
+  pull_request:
+    branches: [ "main", "develop" ]  # Adicionado branch "develop" para análise
+
+# Define permissões apropriadas
+permissions:
+  contents: read
+  pull-requests: write  # Necessário para comentar o resumo no PR
+
+# Define concorrência para evitar execuções duplicadas do workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # Adiciona timeout razoável para evitar workflows travados
+    
+    steps:
+      - name: 'Checkout do repositório'
+        uses: actions/checkout@v4
+      
+      - name: 'Revisão de Dependências'
+        id: dependency-review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Comentar o PR com resumo de vulnerabilidades
+          comment-summary-in-pr: always
+          
+          # Configurações de vulnerabilidade
+          fail-on-severity: high  # Bloqueia PRs que introduzem vulnerabilidades de alta severidade
+          vulnerability-alerts: moderate, high  # Alerta sobre vulnerabilidades moderadas e altas
+          
+          # Configurações de licença (descomente e personalize conforme necessário)
+          # license-check: true  # Habilita verificação de licenças
+          # deny-licenses: GPL-1.0-or-later, LGPL-2.0-or-later  # Bloqueia PRs que introduzem estas licenças
+          # allow-licenses: MIT, Apache-2.0, BSD-3-Clause  # Permite estas licenças (substitui deny-licenses)
+          # allow-dependencies-licenses: meu-pacote:MIT  # Permite pacotes específicos com licenças específicas
+          
+          # Outras configurações úteis
+          retry-on-snapshot-warnings: true  # Tenta novamente em avisos de snapshot
+          # fail-on-scopes: runtime, production  # Falha apenas em vulnerabilidades nestes escopos de dependência
+          
+          # Para equipes com configuração personalizada
+          # config-file: .github/dependency-review-config.yml  # Usa um arquivo de configuração

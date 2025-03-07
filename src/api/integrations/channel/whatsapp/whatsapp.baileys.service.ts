@@ -1169,23 +1169,23 @@ export class BaileysStartupService extends ChannelStartupService {
             }
           }
 
-          // if (received.messageStubParameters && received.messageStubParameters[0] === 'Message absent from node') {
-          //   this.logger.info(`Recovering message lost messageId: ${received.key.id}`);
+          if (received.messageStubParameters && received.messageStubParameters[0] === 'Message absent from node') {
+            this.logger.info(`Recovering message lost messageId: ${received.key.id}`);
 
-          //   await this.baileysCache.set(received.key.id, {
-          //     message: received,
-          //     retry: 0,
-          //   });
+            await this.baileysCache.set(received.key.id, {
+              message: received,
+              retry: 0,
+            });
 
-          //   continue;
-          // }
+            continue;
+          }
 
-          // const retryCache = (await this.baileysCache.get(received.key.id)) || null;
+          const retryCache = (await this.baileysCache.get(received.key.id)) || null;
 
-          // if (retryCache) {
-          //   this.logger.info('Recovered message lost');
-          //   await this.baileysCache.delete(received.key.id);
-          // }
+          if (retryCache) {
+            this.logger.info('Recovered message lost');
+            await this.baileysCache.delete(received.key.id);
+          }
 
           // Cache to avoid duplicate messages
           const messageKey = `${this.instance.id}_${received.key.id}`;
@@ -1908,7 +1908,8 @@ export class BaileysStartupService extends ChannelStartupService {
       if (number) {
         const info = (await this.whatsappNumber({ numbers: [jid] }))?.shift();
         const picture = await this.profilePicture(info?.jid);
-        const status = await this.getStatus(info?.jid);
+        const statusResult = await this.getStatus(info?.jid);
+        const status = Array.isArray(statusResult) && statusResult.length > 0 ? statusResult[0]?.status : null;
         const business = await this.fetchBusinessProfile(info?.jid);
 
         return {
@@ -1916,7 +1917,7 @@ export class BaileysStartupService extends ChannelStartupService {
           name: info?.name,
           numberExists: info?.exists,
           picture: picture?.profilePictureUrl,
-          status: status?.status,
+          status: status,
           isBusiness: business.isBusiness,
           email: business?.email,
           description: business?.description,

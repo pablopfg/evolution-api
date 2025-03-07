@@ -1,0 +1,74 @@
+# Arquivo .github/workflows/branch-protection.yml
+
+name: Proteção de Branches
+
+on:
+  # Este workflow será executado quando for feito push nas branches main ou develop
+  push:
+    branches: [ main, develop ]
+  
+  # Também pode ser executado manualmente se necessário
+  workflow_dispatch:
+
+jobs:
+  protect-main-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar proteção da branch main
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.ADMIN_TOKEN }}
+          script: |
+            await github.rest.repos.updateBranchProtection({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: 'main',
+              required_status_checks: {
+                strict: true,
+                contexts: ['build']
+              },
+              enforce_admins: true,
+              required_pull_request_reviews: {
+                required_approving_review_count: 1,
+                dismiss_stale_reviews: true
+              },
+              restrictions: {
+                users: ['pablopfg'],
+                teams: [],
+                apps: []
+              },
+              allow_force_pushes: false,
+              allow_deletions: false
+            });
+            console.log('Proteção da branch main configurada com sucesso!');
+            
+  protect-develop-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configurar proteção da branch develop
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.ADMIN_TOKEN }}
+          script: |
+            await github.rest.repos.updateBranchProtection({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: 'develop',
+              required_status_checks: {
+                strict: true,
+                contexts: ['build']
+              },
+              enforce_admins: true,
+              required_pull_request_reviews: {
+                required_approving_review_count: 1,
+                dismiss_stale_reviews: true
+              },
+              restrictions: {
+                users: ['pablopfg'],
+                teams: [],
+                apps: []
+              },
+              allow_force_pushes: false,
+              allow_deletions: false
+            });
+            console.log('Proteção da branch develop configurada com sucesso!');

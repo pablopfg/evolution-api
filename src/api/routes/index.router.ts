@@ -66,8 +66,7 @@ router
       message: 'Welcome to the Evolution API, it is working!',
       version: packageJson.version,
       clientName: process.env.DATABASE_CONNECTION_CLIENT_NAME,
-      manager: !serverConfig.DISABLE_MANAGER ? `${req.protocol}://${req.get('host')}/manager` : undefined,
-      documentation: `https://doc.evolution-api.com`,
+      manager: !serverConfig.DISABLE_MANAGER ? `https://${req.get('host')}/manager` : undefined,
     });
   })
   .post('/verify-creds', authGuard['apikey'], async (req, res) => {

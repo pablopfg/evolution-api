@@ -74,7 +74,7 @@ export class WebhookController extends EventController implements EventControlle
 
     const webhookConfig = configService.get<Webhook>('WEBHOOK');
     const webhookLocal = instance?.events;
-    const webhookHeaders = { ...(instance?.headers as Record<string, string> || {}) };
+    const webhookHeaders = { ...((instance?.headers as Record<string, string>) || {}) };
 
     if (webhookHeaders && 'jwt_key' in webhookHeaders) {
       const jwtKey = webhookHeaders['jwt_key'];

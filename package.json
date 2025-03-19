@@ -75,9 +75,10 @@
     "jimp": "^0.16.13",
     "json-schema": "^0.4.0",
     "jsonschema": "^1.4.1",
+    "jsonwebtoken": "^9.0.2",
     "link-preview-js": "^3.0.13",
-    "long": "^5.2.3",
-    "mediainfo.js": "^0.3.4",
+    "long": "^5.3.1",
+    "mediainfo.js": "^1.0.1",
     "mime": "^4.0.0",
     "mime-types": "^2.1.35",
     "minio": "^8.0.3",
@@ -95,7 +96,7 @@
     "redis": "^4.7.0",
     "sharp": "^0.32.6",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1"    
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@types/compression": "^1.7.5",

@@ -6,7 +6,6 @@ import { configService, Log, Webhook } from '@config/env.config';
 import { Logger } from '@config/logger.config';
 import { BadRequestException } from '@exceptions';
 import axios, { AxiosInstance } from 'axios';
-import { isURL } from 'class-validator';
 import * as jwt from 'jsonwebtoken';
 
 import { EmitData, EventController, EventControllerInterface } from '../event.controller';

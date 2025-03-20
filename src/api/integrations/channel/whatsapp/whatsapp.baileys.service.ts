@@ -1151,7 +1151,7 @@ export class BaileysStartupService extends ChannelStartupService {
                   where: { id: (oldMessage as any).id },
                   data: {
                     message: editedMessage.editedMessage as any,
-                    messageTimestamp: Long.fromValue(editedMessage.timestampMs).toNumber(),
+                    messageTimestamp: (editedMessage.timestampMs as Long).toNumber(),
                     status: 'EDITED',
                   },
                 });

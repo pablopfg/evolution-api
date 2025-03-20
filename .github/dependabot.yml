@@ -1,0 +1,23 @@
+# To get started with Dependabot version updates, you'll need to specify which
+# package ecosystems to update and where the package manifests are located.
+# Please see the documentation for all configuration options:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: "npm"         # Altere conforme seu ecossistema (ex.: pip, bundler)
+    directory: "/"                   # Localização dos manifestos dos pacotes
+    schedule:
+      interval: "daily"              # Atualizações diárias
+    open-pull-requests-limit: 10       # Limita a 10 PRs abertas simultaneamente
+    target-branch: "main"             # Branch alvo para as PRs
+    commit-message:
+      prefix: "chore(deps):"          # Prefixo para a mensagem de commit
+    labels:
+      - dependencies                 # Labels que serão adicionadas às PRs
+    assignees:
+      - pablopfg                     # Usuário atribuído automaticamente
+    reviewers:
+      - pablopfg                     # Revisor automático
+    allow:
+      - dependency-type: "all"       # Permite atualizações para todos os tipos de dependências

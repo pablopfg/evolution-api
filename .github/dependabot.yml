@@ -5,19 +5,32 @@
 
 version: 2
 updates:
-  - package-ecosystem: "npm"         # Altere conforme seu ecossistema (ex.: pip, bundler)
-    directory: "/"                   # Localização dos manifestos dos pacotes
+  - package-ecosystem: "npm"
+    directory: "/"
     schedule:
-      interval: "daily"              # Atualizações diárias
-    open-pull-requests-limit: 10       # Limita a 10 PRs abertas simultaneamente
-    target-branch: "main"             # Branch alvo para as PRs
+      interval: "daily"
+    open-pull-requests-limit: 10
+    target-branch: "main"
     commit-message:
-      prefix: "chore(deps):"          # Prefixo para a mensagem de commit
+      prefix: "chore(deps):"
     labels:
-      - dependencies                 # Labels que serão adicionadas às PRs
+      - dependencies
     assignees:
-      - pablopfg                     # Usuário atribuído automaticamente
+      - pablopfg
     reviewers:
-      - pablopfg                     # Revisor automático
+      - pablopfg
     allow:
-      - dependency-type: "all"       # Permite atualizações para todos os tipos de dependências
+      - dependency-type: "all"
+    ignore:
+      - dependency-name: "@types/express"
+        versions:
+          - "4.17.21"
+      - dependency-name: "@typescript-eslint/eslint-plugin"
+        versions:
+          - "6.21.0"
+      - dependency-name: "@typescript-eslint/parser"
+        versions:
+          - "6.21.0"
+      - dependency-name: "sharp"
+        versions:
+          - "0.32.6"

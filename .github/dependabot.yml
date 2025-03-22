@@ -31,6 +31,9 @@ updates:
       - dependency-name: "@typescript-eslint/parser"
         versions:
           - "6.21.0"
+      - dependency-name: "eslint"
+        versions:
+          - "8.57.1"
       - dependency-name: "sharp"
         versions:
           - "0.32.6"

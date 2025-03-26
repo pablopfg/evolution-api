@@ -19,21 +19,22 @@ updates:
       - pablopfg
     reviewers:
       - pablopfg
-    allow:
-      - dependency-type: "all"
     ignore:
       - dependency-name: "@types/express"
         versions:
-          - "4.17.21"
+          - ">= 4.17.21"
       - dependency-name: "@typescript-eslint/eslint-plugin"
         versions:
-          - "6.21.0"
+          - ">= 6.21.0"
       - dependency-name: "@typescript-eslint/parser"
         versions:
-          - "6.21.0"
+          - ">= 6.21.0"
       - dependency-name: "eslint"
         versions:
-          - "8.57.1"
+          - ">= 8.57.1"
       - dependency-name: "sharp"
         versions:
-          - "0.32.6"
+          - ">= 0.32.6"
+      - dependency-name: "jimp"
+        versions:
+          - ">= 0.16.13"

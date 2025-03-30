@@ -718,6 +718,7 @@ export class ChannelStartupService {
             "Chat"."name" as "chatName",
             "Chat"."createdAt" as "windowStart",
             "Chat"."createdAt" + INTERVAL '24 hours' as "windowExpires",
+            "Chat"."labels" as "labels",
             CASE 
               WHEN "Chat"."createdAt" + INTERVAL '24 hours' > NOW() THEN true 
               ELSE false 
@@ -782,6 +783,7 @@ export class ChannelStartupService {
           windowExpires: contact.windowExpires,
           windowActive: contact.windowActive,
           lastMessage: lastMessage ? this.cleanMessageData(lastMessage) : undefined,
+          labels: contact.labels,
         };
       });
 

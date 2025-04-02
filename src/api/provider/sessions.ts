@@ -1,7 +1,7 @@
 import { Auth, ConfigService, ProviderSession } from '@config/env.config';
 import { Logger } from '@config/logger.config';
 import axios from 'axios';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 type ResponseSuccess = { status: number; data?: any };
 type ResponseProvider = Promise<[ResponseSuccess?, Error?]>;
@@ -35,8 +35,7 @@ export class ProviderFiles {
         await axios.post(`${url}/session`, { group: this.config.PREFIX }, { headers: { apikey: this.globalApiToken } });
       } catch (error) {
         this.logger.error(['Failed to connect to the file server', error?.message, error?.stack]);
-        const pid = process.pid;
-        execSync(`kill -9 ${pid}`);
+        process.exit(1);
       }
     }
   }

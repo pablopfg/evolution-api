@@ -387,7 +387,6 @@ export class EvolutionBotService {
           },
           false,
         );
-
       }
       return;
     }

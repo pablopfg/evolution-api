@@ -52,7 +52,7 @@
     "@adiwajshing/keyed-db": "^0.2.4",
     "@aws-sdk/client-sqs": "^3.777.0",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
-    "@figuro/chatwoot-sdk": "^1.1.16",
+    "@figuro/chatwoot-sdk": "^1.1.17",
     "@hapi/boom": "^10.0.1",
     "@paralleldrive/cuid2": "^2.2.2",
     "@prisma/client": "^6.1.0",

@@ -21,7 +21,6 @@ import ChatwootClient, {
 import { request as chatwootRequest } from '@figuro/chatwoot-sdk/dist/core/request';
 import { Chatwoot as ChatwootModel, Contact as ContactModel, Message as MessageModel } from '@prisma/client';
 import i18next from '@utils/i18n';
-import { sendTelemetry } from '@utils/sendTelemetry';
 import axios from 'axios';
 import { proto } from 'baileys';
 import dayjs from 'dayjs';
@@ -1104,8 +1103,6 @@ export class ChatwootService {
           quoted: options?.quoted,
         };
 
-        sendTelemetry('/message/sendWhatsAppAudio');
-
         const messageSent = await waInstance?.audioWhatsapp(data, null, true);
 
         return messageSent;
@@ -1123,8 +1120,6 @@ export class ChatwootService {
         delay: 1500,
         quoted: options?.quoted,
       };
-
-      sendTelemetry('/message/sendMedia');
 
       if (caption) {
         data.caption = caption;
@@ -1382,8 +1377,6 @@ export class ChatwootService {
               quoted: await this.getQuotedMessage(body, instance),
             };
 
-            sendTelemetry('/message/sendText');
-
             let messageSent: any;
             try {
               messageSent = await waInstance?.textMessage(data, true);
@@ -1473,8 +1466,6 @@ export class ChatwootService {
           text: body.content.replace(/\\\r\n|\\\n|\n/g, '\n'),
           delay: 1500,
         };
-
-        sendTelemetry('/message/sendText');
 
         await waInstance?.textMessage(data);
       }

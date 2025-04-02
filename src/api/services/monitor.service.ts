@@ -170,7 +170,7 @@ export class WAMonitoringService {
   public async cleaningStoreData(instanceName: string) {
     if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED) {
       const instancePath = join(STORE_DIR, 'chatwoot', instanceName);
-      rmSync(instancePath, { recursive: true, force: true });
+      execFileSync('rm', ['-rf', instancePath]);
     }
 
     const instance = await this.prismaRepository.instance.findFirst({

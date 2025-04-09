@@ -6,7 +6,6 @@ import { Integration } from '@api/types/wa.types';
 import { Auth, ConfigService, HttpServer } from '@config/env.config';
 import { Logger } from '@config/logger.config';
 import { EvolutionBot, EvolutionBotSetting, IntegrationSession } from '@prisma/client';
-import { sendTelemetry } from '@utils/sendTelemetry';
 import axios from 'axios';
 
 export class EvolutionBotService {
@@ -278,8 +277,6 @@ export class EvolutionBotService {
       textBuffer = '';
     }
 
-    sendTelemetry('/message/sendText');
-
     await this.prismaRepository.integrationSession.update({
       where: {
         id: session.id,
@@ -390,8 +387,6 @@ export class EvolutionBotService {
           },
           false,
         );
-
-        sendTelemetry('/message/sendText');
       }
       return;
     }

@@ -57,7 +57,7 @@
     "@paralleldrive/cuid2": "^2.2.2",
     "@prisma/client": "^6.7.0",
     "@sentry/node": "^9.15.0",
-    "amqplib": "^0.10.7",
+    "amqplib": "^0.10.8",
     "axios": "^1.9.0",
     "baileys": "github:EvolutionAPI/Baileys",
     "class-validator": "^0.14.2",

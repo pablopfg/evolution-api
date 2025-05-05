@@ -93,7 +93,7 @@
     "pusher": "^5.2.0",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
-    "redis": "^4.7.0",
+    "redis": "^5.0.1",
     "sharp": "^0.32.6",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"

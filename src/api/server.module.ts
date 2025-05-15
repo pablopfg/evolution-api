@@ -22,10 +22,14 @@ import { ChatwootController } from './integrations/chatbot/chatwoot/controllers/
 import { ChatwootService } from './integrations/chatbot/chatwoot/services/chatwoot.service';
 import { DifyController } from './integrations/chatbot/dify/controllers/dify.controller';
 import { DifyService } from './integrations/chatbot/dify/services/dify.service';
+import { EvoaiController } from './integrations/chatbot/evoai/controllers/evoai.controller';
+import { EvoaiService } from './integrations/chatbot/evoai/services/evoai.service';
 import { EvolutionBotController } from './integrations/chatbot/evolutionBot/controllers/evolutionBot.controller';
 import { EvolutionBotService } from './integrations/chatbot/evolutionBot/services/evolutionBot.service';
 import { FlowiseController } from './integrations/chatbot/flowise/controllers/flowise.controller';
 import { FlowiseService } from './integrations/chatbot/flowise/services/flowise.service';
+import { N8nController } from './integrations/chatbot/n8n/controllers/n8n.controller';
+import { N8nService } from './integrations/chatbot/n8n/services/n8n.service';
 import { OpenaiController } from './integrations/chatbot/openai/controllers/openai.controller';
 import { OpenaiService } from './integrations/chatbot/openai/services/openai.service';
 import { TypebotController } from './integrations/chatbot/typebot/controllers/typebot.controller';
@@ -126,5 +130,11 @@ export const evolutionBotController = new EvolutionBotController(evolutionBotSer
 
 const flowiseService = new FlowiseService(waMonitor, configService, prismaRepository);
 export const flowiseController = new FlowiseController(flowiseService, prismaRepository, waMonitor);
+
+const n8nService = new N8nService(waMonitor, prismaRepository);
+export const n8nController = new N8nController(n8nService, prismaRepository, waMonitor);
+
+const evoaiService = new EvoaiService(waMonitor, prismaRepository, configService);
+export const evoaiController = new EvoaiController(evoaiService, prismaRepository, waMonitor);
 
 logger.info('Module - ON');

@@ -83,6 +83,7 @@ export class WebhookController extends EventController implements EventControlle
 
       delete webhookHeaders['jwt_key'];
     }
+
     const we = event.replace(/[.-]/gm, '_').toUpperCase();
     const transformedWe = we.replace(/_/gm, '-').toLowerCase();
     const enabledLog = configService.get<Log>('LOG').LEVEL.includes('WEBHOOKS');

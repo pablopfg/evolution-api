@@ -3,20 +3,23 @@ import { InstanceDto } from '@api/dto/instance.dto';
 import { PrismaRepository } from '@api/repository/repository.service';
 import { WAMonitoringService } from '@api/services/monitor.service';
 import { Integration } from '@api/types/wa.types';
-import { Auth, ConfigService, HttpServer } from '@config/env.config';
+import { ConfigService, Language } from '@config/env.config';
 import { Logger } from '@config/logger.config';
-import { EvolutionBot, EvolutionBotSetting, IntegrationSession } from '@prisma/client';
+import { Evoai, EvoaiSetting, IntegrationSession } from '@prisma/client';
 import { sendTelemetry } from '@utils/sendTelemetry';
 import axios from 'axios';
+import { downloadMediaMessage } from 'baileys';
+import FormData from 'form-data';
+import { v4 as uuidv4 } from 'uuid';
 
-export class EvolutionBotService {
+export class EvoaiService {
   constructor(
     private readonly waMonitor: WAMonitoringService,
-    private readonly configService: ConfigService,
     private readonly prismaRepository: PrismaRepository,
+    private readonly configService: ConfigService,
   ) {}
 
-  private readonly logger = new Logger('EvolutionBotService');
+  private readonly logger = new Logger('EvoaiService');
 
   public async createNewSession(instance: InstanceDto, data: any) {
     try {
@@ -29,7 +32,7 @@ export class EvolutionBotService {
           awaitUser: false,
           botId: data.botId,
           instanceId: instance.instanceId,
-          type: 'evolution',
+          type: 'evoai',
         },
       });
 
@@ -44,75 +47,185 @@ export class EvolutionBotService {
     return content.includes('imageMessage');
   }
 
+  private isAudioMessage(content: string) {
+    return content.includes('audioMessage');
+  }
+
+  private async speechToText(audioBuffer: Buffer): Promise<string | null> {
+    try {
+      const apiKey = this.configService.get<any>('OPENAI')?.API_KEY;
+      if (!apiKey) {
+        this.logger.error('[EvoAI] No OpenAI API key set for Whisper transcription');
+        return null;
+      }
+      const lang = this.configService.get<Language>('LANGUAGE').includes('pt')
+        ? 'pt'
+        : this.configService.get<Language>('LANGUAGE');
+      const formData = new FormData();
+      formData.append('file', audioBuffer, 'audio.ogg');
+      formData.append('model', 'whisper-1');
+      formData.append('language', lang);
+      const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', formData, {
+        headers: {
+          ...formData.getHeaders(),
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+      return response?.data?.text || null;
+    } catch (err) {
+      this.logger.error(`[EvoAI] Whisper transcription failed: ${err}`);
+      return null;
+    }
+  }
+
   private async sendMessageToBot(
     instance: any,
     session: IntegrationSession,
-    bot: EvolutionBot,
+    settings: EvoaiSetting,
+    evoai: Evoai,
     remoteJid: string,
     pushName: string,
     content: string,
+    msg?: any,
   ) {
-    const payload: any = {
-      inputs: {
-        sessionId: session.id,
-        remoteJid: remoteJid,
-        pushName: pushName,
-        instanceName: instance.instanceName,
-        serverUrl: this.configService.get<HttpServer>('SERVER').URL,
-        apiKey: this.configService.get<Auth>('AUTHENTICATION').API_KEY.KEY,
-      },
-      query: content,
-      conversation_id: session.sessionId === remoteJid ? undefined : session.sessionId,
-      user: remoteJid,
-    };
+    try {
+      const endpoint: string = evoai.agentUrl;
+      const callId = `call-${uuidv4()}`;
+      const taskId = `task-${uuidv4()}`;
 
-    if (this.isImageMessage(content)) {
-      const contentSplit = content.split('|');
-
-      payload.files = [
+      // Prepare message parts
+      const parts: any[] = [
         {
-          type: 'image',
-          url: contentSplit[1].split('?')[0],
+          type: 'text',
+          text: content,
         },
       ];
-      payload.query = contentSplit[2] || content;
-    }
 
-    if (instance.integration === Integration.WHATSAPP_BAILEYS) {
-      await instance.client.presenceSubscribe(remoteJid);
-      await instance.client.sendPresenceUpdate('composing', remoteJid);
-    }
+      // If content indicates an image/file, fetch and encode as base64, then send as a file part
+      if ((this.isImageMessage(content) || this.isAudioMessage(content)) && msg) {
+        const isImage = this.isImageMessage(content);
+        const isAudio = this.isAudioMessage(content);
+        this.logger.debug(`[EvoAI] Media message detected: ${content}`);
 
-    let headers: any = {
-      'Content-Type': 'application/json',
-    };
+        let transcribedText = null;
+        if (isAudio) {
+          try {
+            this.logger.debug(`[EvoAI] Downloading audio for Whisper transcription`);
+            const mediaBuffer = await downloadMediaMessage({ key: msg.key, message: msg.message }, 'buffer', {});
+            transcribedText = await this.speechToText(mediaBuffer);
+            if (transcribedText) {
+              parts[0].text = transcribedText;
+            } else {
+              parts[0].text = '[Audio message could not be transcribed]';
+            }
+          } catch (err) {
+            this.logger.error(`[EvoAI] Failed to transcribe audio: ${err}`);
+            parts[0].text = '[Audio message could not be transcribed]';
+          }
+        } else if (isImage) {
+          const contentSplit = content.split('|');
+          parts[0].text = contentSplit[2] || content;
+          let fileContent = null,
+            fileName = null,
+            mimeType = null;
+          try {
+            this.logger.debug(
+              `[EvoAI] Fetching image using downloadMediaMessage with msg.key: ${JSON.stringify(msg.key)}`,
+            );
+            const mediaBuffer = await downloadMediaMessage({ key: msg.key, message: msg.message }, 'buffer', {});
+            fileContent = Buffer.from(mediaBuffer).toString('base64');
+            fileName = contentSplit[2] || `${msg.key.id}.jpg`;
+            mimeType = 'image/jpeg';
+            parts.push({
+              type: 'file',
+              file: {
+                name: fileName,
+                bytes: fileContent,
+                mimeType: mimeType,
+              },
+            });
+          } catch (fileErr) {
+            this.logger.error(`[EvoAI] Failed to fetch or encode image for EvoAI: ${fileErr}`);
+          }
+        }
+      }
 
-    if (bot.apiKey) {
-      headers = {
-        ...headers,
-        Authorization: `Bearer ${bot.apiKey}`,
+      const payload = {
+        jsonrpc: '2.0',
+        method: 'tasks/send',
+        params: {
+          message: {
+            role: 'user',
+            parts,
+          },
+          sessionId: session.sessionId,
+          id: taskId,
+        },
+        id: callId,
       };
+
+      this.logger.debug(`[EvoAI] Sending request to: ${endpoint}`);
+      // Redact base64 file bytes from payload log
+      const redactedPayload = JSON.parse(JSON.stringify(payload));
+      if (redactedPayload?.params?.message?.parts) {
+        redactedPayload.params.message.parts = redactedPayload.params.message.parts.map((part) => {
+          if (part.type === 'file' && part.file && part.file.bytes) {
+            return { ...part, file: { ...part.file, bytes: '[base64 omitted]' } };
+          }
+          return part;
+        });
+      }
+      this.logger.debug(`[EvoAI] Payload: ${JSON.stringify(redactedPayload)}`);
+
+      if (instance.integration === Integration.WHATSAPP_BAILEYS) {
+        await instance.client.presenceSubscribe(remoteJid);
+        await instance.client.sendPresenceUpdate('composing', remoteJid);
+      }
+
+      const response = await axios.post(endpoint, payload, {
+        headers: {
+          'x-api-key': evoai.apiKey,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      this.logger.debug(`[EvoAI] Response: ${JSON.stringify(response.data.status)}`);
+
+      if (instance.integration === Integration.WHATSAPP_BAILEYS)
+        await instance.client.sendPresenceUpdate('paused', remoteJid);
+
+      let message = undefined;
+      const result = response?.data?.result;
+      if (result?.status?.message?.parts && Array.isArray(result.status.message.parts)) {
+        const textPart = result.status.message.parts.find((p) => p.type === 'text' && p.text);
+        if (textPart) message = textPart.text;
+      }
+      this.logger.debug(`[EvoAI] Extracted message to send: ${message}`);
+      const conversationId = session.sessionId;
+
+      if (message) {
+        await this.sendMessageWhatsApp(instance, remoteJid, message, settings);
+      }
+
+      await this.prismaRepository.integrationSession.update({
+        where: {
+          id: session.id,
+        },
+        data: {
+          status: 'opened',
+          awaitUser: true,
+          sessionId: conversationId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `[EvoAI] Error sending message: ${error?.response?.data ? JSON.stringify(error.response.data) : error}`,
+      );
+      return;
     }
-
-    const response = await axios.post(bot.apiUrl, payload, {
-      headers,
-    });
-
-    if (instance.integration === Integration.WHATSAPP_BAILEYS)
-      await instance.client.sendPresenceUpdate('paused', remoteJid);
-
-    const message = response?.data?.message;
-
-    return message;
   }
 
-  private async sendMessageWhatsApp(
-    instance: any,
-    remoteJid: string,
-    session: IntegrationSession,
-    settings: EvolutionBotSetting,
-    message: string,
-  ) {
+  private async sendMessageWhatsApp(instance: any, remoteJid: string, message: string, settings: EvoaiSetting) {
     const linkRegex = /(!?)\[(.*?)\]\((.*?)\)/g;
 
     let textBuffer = '';
@@ -275,58 +388,45 @@ export class EvolutionBotService {
           false,
         );
       }
-      textBuffer = '';
     }
 
     sendTelemetry('/message/sendText');
-
-    await this.prismaRepository.integrationSession.update({
-      where: {
-        id: session.id,
-      },
-      data: {
-        status: 'opened',
-        awaitUser: true,
-      },
-    });
   }
 
   private async initNewSession(
     instance: any,
     remoteJid: string,
-    bot: EvolutionBot,
-    settings: EvolutionBotSetting,
+    evoai: Evoai,
+    settings: EvoaiSetting,
     session: IntegrationSession,
     content: string,
     pushName?: string,
+    msg?: any,
   ) {
     const data = await this.createNewSession(instance, {
       remoteJid,
       pushName,
-      botId: bot.id,
+      botId: evoai.id,
     });
 
     if (data.session) {
       session = data.session;
     }
 
-    const message = await this.sendMessageToBot(instance, session, bot, remoteJid, pushName, content);
-
-    if (!message) return;
-
-    await this.sendMessageWhatsApp(instance, remoteJid, session, settings, message);
+    await this.sendMessageToBot(instance, session, settings, evoai, remoteJid, pushName, content, msg);
 
     return;
   }
 
-  public async processBot(
+  public async processEvoai(
     instance: any,
     remoteJid: string,
-    bot: EvolutionBot,
+    evoai: Evoai,
     session: IntegrationSession,
-    settings: EvolutionBotSetting,
+    settings: EvoaiSetting,
     content: string,
     pushName?: string,
+    msg?: any,
   ) {
     if (session && session.status !== 'opened') {
       return;
@@ -354,19 +454,19 @@ export class EvolutionBotService {
         } else {
           await this.prismaRepository.integrationSession.deleteMany({
             where: {
-              botId: bot.id,
+              botId: evoai.id,
               remoteJid: remoteJid,
             },
           });
         }
 
-        await this.initNewSession(instance, remoteJid, bot, settings, session, content, pushName);
+        await this.initNewSession(instance, remoteJid, evoai, settings, session, content, pushName, msg);
         return;
       }
     }
 
     if (!session) {
-      await this.initNewSession(instance, remoteJid, bot, settings, session, content, pushName);
+      await this.initNewSession(instance, remoteJid, evoai, settings, session, content, pushName, msg);
       return;
     }
 
@@ -409,7 +509,7 @@ export class EvolutionBotService {
       } else {
         await this.prismaRepository.integrationSession.deleteMany({
           where: {
-            botId: bot.id,
+            botId: evoai.id,
             remoteJid: remoteJid,
           },
         });
@@ -417,11 +517,7 @@ export class EvolutionBotService {
       return;
     }
 
-    const message = await this.sendMessageToBot(instance, session, bot, remoteJid, pushName, content);
-
-    if (!message) return;
-
-    await this.sendMessageWhatsApp(instance, remoteJid, session, settings, message);
+    await this.sendMessageToBot(instance, session, settings, evoai, remoteJid, pushName, content, msg);
 
     return;
   }

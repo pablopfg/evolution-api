@@ -1,22 +1,125 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { InstanceDto } from '@api/dto/instance.dto';
 import { PrismaRepository } from '@api/repository/repository.service';
 import { WAMonitoringService } from '@api/services/monitor.service';
-import { Integration } from '@api/types/wa.types';
-import { Auth, ConfigService, HttpServer } from '@config/env.config';
 import { Logger } from '@config/logger.config';
-import { EvolutionBot, EvolutionBotSetting, IntegrationSession } from '@prisma/client';
+import { IntegrationSession, N8n, N8nSetting } from '@prisma/client';
 import { sendTelemetry } from '@utils/sendTelemetry';
 import axios from 'axios';
 
-export class EvolutionBotService {
-  constructor(
-    private readonly waMonitor: WAMonitoringService,
-    private readonly configService: ConfigService,
-    private readonly prismaRepository: PrismaRepository,
-  ) {}
+import { N8nDto } from '../dto/n8n.dto';
 
-  private readonly logger = new Logger('EvolutionBotService');
+export class N8nService {
+  private readonly logger = new Logger('N8nService');
+  private readonly waMonitor: WAMonitoringService;
+
+  constructor(
+    waMonitor: WAMonitoringService,
+    private readonly prismaRepository: PrismaRepository,
+  ) {
+    this.waMonitor = waMonitor;
+  }
+
+  /**
+   * Create a new N8n bot for the given instance.
+   */
+  public async createBot(instanceId: string, data: N8nDto) {
+    try {
+      return await this.prismaRepository.n8n.create({
+        data: {
+          enabled: data.enabled ?? true,
+          description: data.description,
+          webhookUrl: data.webhookUrl,
+          basicAuthUser: data.basicAuthUser,
+          basicAuthPass: data.basicAuthPass,
+          instanceId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Find all N8n bots for the given instance.
+   */
+  public async findBots(instanceId: string) {
+    try {
+      return await this.prismaRepository.n8n.findMany({ where: { instanceId } });
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch a specific N8n bot by ID and instance.
+   */
+  public async fetchBot(instanceId: string, n8nId: string) {
+    try {
+      const bot = await this.prismaRepository.n8n.findFirst({ where: { id: n8nId } });
+      if (!bot || bot.instanceId !== instanceId) throw new Error('N8n bot not found');
+      return bot;
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a specific N8n bot.
+   */
+  public async updateBot(instanceId: string, n8nId: string, data: N8nDto) {
+    try {
+      await this.fetchBot(instanceId, n8nId);
+      return await this.prismaRepository.n8n.update({
+        where: { id: n8nId },
+        data: {
+          enabled: data.enabled,
+          description: data.description,
+          webhookUrl: data.webhookUrl,
+          basicAuthUser: data.basicAuthUser,
+          basicAuthPass: data.basicAuthPass,
+        },
+      });
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a specific N8n bot.
+   */
+  public async deleteBot(instanceId: string, n8nId: string) {
+    try {
+      await this.fetchBot(instanceId, n8nId);
+      return await this.prismaRepository.n8n.delete({ where: { id: n8nId } });
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send a message to the N8n bot webhook.
+   */
+  public async sendMessage(n8nId: string, chatInput: string, sessionId: string): Promise<string> {
+    try {
+      const bot = await this.prismaRepository.n8n.findFirst({ where: { id: n8nId, enabled: true } });
+      if (!bot) throw new Error('N8n bot not found or not enabled');
+      const headers: Record<string, string> = {};
+      if (bot.basicAuthUser && bot.basicAuthPass) {
+        const auth = Buffer.from(`${bot.basicAuthUser}:${bot.basicAuthPass}`).toString('base64');
+        headers['Authorization'] = `Basic ${auth}`;
+      }
+      const response = await axios.post(bot.webhookUrl, { chatInput, sessionId }, { headers });
+      return response.data.output;
+    } catch (error) {
+      this.logger.error(error);
+      throw new Error('Error sending message to n8n bot');
+    }
+  }
 
   public async createNewSession(instance: InstanceDto, data: any) {
     try {
@@ -29,10 +132,9 @@ export class EvolutionBotService {
           awaitUser: false,
           botId: data.botId,
           instanceId: instance.instanceId,
-          type: 'evolution',
+          type: 'n8n',
         },
       });
-
       return { session };
     } catch (error) {
       this.logger.error(error);
@@ -44,125 +146,92 @@ export class EvolutionBotService {
     return content.includes('imageMessage');
   }
 
+  private isJSON(str: string): boolean {
+    try {
+      JSON.parse(str);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   private async sendMessageToBot(
     instance: any,
     session: IntegrationSession,
-    bot: EvolutionBot,
+    settings: N8nSetting,
+    n8n: N8n,
     remoteJid: string,
     pushName: string,
     content: string,
   ) {
-    const payload: any = {
-      inputs: {
-        sessionId: session.id,
-        remoteJid: remoteJid,
-        pushName: pushName,
-        instanceName: instance.instanceName,
-        serverUrl: this.configService.get<HttpServer>('SERVER').URL,
-        apiKey: this.configService.get<Auth>('AUTHENTICATION').API_KEY.KEY,
-      },
-      query: content,
-      conversation_id: session.sessionId === remoteJid ? undefined : session.sessionId,
-      user: remoteJid,
-    };
-
-    if (this.isImageMessage(content)) {
-      const contentSplit = content.split('|');
-
-      payload.files = [
-        {
-          type: 'image',
-          url: contentSplit[1].split('?')[0],
-        },
-      ];
-      payload.query = contentSplit[2] || content;
-    }
-
-    if (instance.integration === Integration.WHATSAPP_BAILEYS) {
-      await instance.client.presenceSubscribe(remoteJid);
-      await instance.client.sendPresenceUpdate('composing', remoteJid);
-    }
-
-    let headers: any = {
-      'Content-Type': 'application/json',
-    };
-
-    if (bot.apiKey) {
-      headers = {
-        ...headers,
-        Authorization: `Bearer ${bot.apiKey}`,
+    try {
+      const endpoint: string = n8n.webhookUrl;
+      const payload: any = {
+        chatInput: content,
+        sessionId: session.sessionId,
       };
+      const headers: Record<string, string> = {};
+      if (n8n.basicAuthUser && n8n.basicAuthPass) {
+        const auth = Buffer.from(`${n8n.basicAuthUser}:${n8n.basicAuthPass}`).toString('base64');
+        headers['Authorization'] = `Basic ${auth}`;
+      }
+      const response = await axios.post(endpoint, payload, { headers });
+      const message = response?.data?.output || response?.data?.answer;
+      await this.sendMessageWhatsApp(instance, remoteJid, message, settings);
+      await this.prismaRepository.integrationSession.update({
+        where: {
+          id: session.id,
+        },
+        data: {
+          status: 'opened',
+          awaitUser: true,
+        },
+      });
+    } catch (error) {
+      this.logger.error(error.response?.data || error);
+      return;
     }
-
-    const response = await axios.post(bot.apiUrl, payload, {
-      headers,
-    });
-
-    if (instance.integration === Integration.WHATSAPP_BAILEYS)
-      await instance.client.sendPresenceUpdate('paused', remoteJid);
-
-    const message = response?.data?.message;
-
-    return message;
   }
 
-  private async sendMessageWhatsApp(
-    instance: any,
-    remoteJid: string,
-    session: IntegrationSession,
-    settings: EvolutionBotSetting,
-    message: string,
-  ) {
+  private async sendMessageWhatsApp(instance: any, remoteJid: string, message: string, settings: N8nSetting) {
     const linkRegex = /(!?)\[(.*?)\]\((.*?)\)/g;
-
     let textBuffer = '';
     let lastIndex = 0;
-
     let match: RegExpExecArray | null;
-
     const getMediaType = (url: string): string | null => {
       const extension = url.split('.').pop()?.toLowerCase();
       const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
       const audioExtensions = ['mp3', 'wav', 'aac', 'ogg'];
       const videoExtensions = ['mp4', 'avi', 'mkv', 'mov'];
       const documentExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'];
-
       if (imageExtensions.includes(extension || '')) return 'image';
       if (audioExtensions.includes(extension || '')) return 'audio';
       if (videoExtensions.includes(extension || '')) return 'video';
       if (documentExtensions.includes(extension || '')) return 'document';
       return null;
     };
-
     while ((match = linkRegex.exec(message)) !== null) {
-      const [fullMatch, exclMark, altText, url] = match;
+      const [altText, url] = match;
       const mediaType = getMediaType(url);
-
       const beforeText = message.slice(lastIndex, match.index);
       if (beforeText) {
         textBuffer += beforeText;
       }
-
       if (mediaType) {
         const splitMessages = settings.splitMessages ?? false;
         const timePerChar = settings.timePerChar ?? 0;
         const minDelay = 1000;
         const maxDelay = 20000;
-
         if (textBuffer.trim()) {
           if (splitMessages) {
             const multipleMessages = textBuffer.trim().split('\n\n');
-
             for (let index = 0; index < multipleMessages.length; index++) {
               const message = multipleMessages[index];
-
               const delay = Math.min(Math.max(message.length * timePerChar, minDelay), maxDelay);
-
-              if (instance.integration === Integration.WHATSAPP_BAILEYS) {
+              if (instance.integration === 'WHATSAPP_BAILEYS') {
                 await instance.client.presenceSubscribe(remoteJid);
                 await instance.client.sendPresenceUpdate('composing', remoteJid);
               }
-
               await new Promise<void>((resolve) => {
                 setTimeout(async () => {
                   await instance.textMessage(
@@ -176,8 +245,7 @@ export class EvolutionBotService {
                   resolve();
                 }, delay);
               });
-
-              if (instance.integration === Integration.WHATSAPP_BAILEYS) {
+              if (instance.integration === 'WHATSAPP_BAILEYS') {
                 await instance.client.sendPresenceUpdate('paused', remoteJid);
               }
             }
@@ -193,7 +261,6 @@ export class EvolutionBotService {
           }
           textBuffer = '';
         }
-
         if (mediaType === 'audio') {
           await instance.audioWhatsapp({
             number: remoteJid.split('@')[0],
@@ -217,36 +284,28 @@ export class EvolutionBotService {
       } else {
         textBuffer += `[${altText}](${url})`;
       }
-
       lastIndex = linkRegex.lastIndex;
     }
-
     if (lastIndex < message.length) {
       const remainingText = message.slice(lastIndex);
       if (remainingText.trim()) {
         textBuffer += remainingText;
       }
     }
-
     const splitMessages = settings.splitMessages ?? false;
     const timePerChar = settings.timePerChar ?? 0;
     const minDelay = 1000;
     const maxDelay = 20000;
-
     if (textBuffer.trim()) {
       if (splitMessages) {
         const multipleMessages = textBuffer.trim().split('\n\n');
-
         for (let index = 0; index < multipleMessages.length; index++) {
           const message = multipleMessages[index];
-
           const delay = Math.min(Math.max(message.length * timePerChar, minDelay), maxDelay);
-
-          if (instance.integration === Integration.WHATSAPP_BAILEYS) {
+          if (instance.integration === 'WHATSAPP_BAILEYS') {
             await instance.client.presenceSubscribe(remoteJid);
             await instance.client.sendPresenceUpdate('composing', remoteJid);
           }
-
           await new Promise<void>((resolve) => {
             setTimeout(async () => {
               await instance.textMessage(
@@ -260,8 +319,7 @@ export class EvolutionBotService {
               resolve();
             }, delay);
           });
-
-          if (instance.integration === Integration.WHATSAPP_BAILEYS) {
+          if (instance.integration === 'WHATSAPP_BAILEYS') {
             await instance.client.sendPresenceUpdate('paused', remoteJid);
           }
         }
@@ -275,27 +333,15 @@ export class EvolutionBotService {
           false,
         );
       }
-      textBuffer = '';
     }
-
     sendTelemetry('/message/sendText');
-
-    await this.prismaRepository.integrationSession.update({
-      where: {
-        id: session.id,
-      },
-      data: {
-        status: 'opened',
-        awaitUser: true,
-      },
-    });
   }
 
   private async initNewSession(
     instance: any,
     remoteJid: string,
-    bot: EvolutionBot,
-    settings: EvolutionBotSetting,
+    n8n: N8n,
+    settings: N8nSetting,
     session: IntegrationSession,
     content: string,
     pushName?: string,
@@ -303,83 +349,55 @@ export class EvolutionBotService {
     const data = await this.createNewSession(instance, {
       remoteJid,
       pushName,
-      botId: bot.id,
+      botId: n8n.id,
     });
-
     if (data.session) {
       session = data.session;
     }
-
-    const message = await this.sendMessageToBot(instance, session, bot, remoteJid, pushName, content);
-
-    if (!message) return;
-
-    await this.sendMessageWhatsApp(instance, remoteJid, session, settings, message);
-
+    await this.sendMessageToBot(instance, session, settings, n8n, remoteJid, pushName, content);
     return;
   }
 
-  public async processBot(
+  public async processN8n(
     instance: any,
     remoteJid: string,
-    bot: EvolutionBot,
+    n8n: N8n,
     session: IntegrationSession,
-    settings: EvolutionBotSetting,
+    settings: N8nSetting,
     content: string,
     pushName?: string,
   ) {
     if (session && session.status !== 'opened') {
       return;
     }
-
     if (session && settings.expire && settings.expire > 0) {
       const now = Date.now();
-
       const sessionUpdatedAt = new Date(session.updatedAt).getTime();
-
       const diff = now - sessionUpdatedAt;
-
       const diffInMinutes = Math.floor(diff / 1000 / 60);
-
       if (diffInMinutes > settings.expire) {
         if (settings.keepOpen) {
           await this.prismaRepository.integrationSession.update({
-            where: {
-              id: session.id,
-            },
-            data: {
-              status: 'closed',
-            },
+            where: { id: session.id },
+            data: { status: 'closed' },
           });
         } else {
           await this.prismaRepository.integrationSession.deleteMany({
-            where: {
-              botId: bot.id,
-              remoteJid: remoteJid,
-            },
+            where: { botId: n8n.id, remoteJid: remoteJid },
           });
         }
-
-        await this.initNewSession(instance, remoteJid, bot, settings, session, content, pushName);
+        await this.initNewSession(instance, remoteJid, n8n, settings, session, content, pushName);
         return;
       }
     }
-
     if (!session) {
-      await this.initNewSession(instance, remoteJid, bot, settings, session, content, pushName);
+      await this.initNewSession(instance, remoteJid, n8n, settings, session, content, pushName);
       return;
     }
-
     await this.prismaRepository.integrationSession.update({
-      where: {
-        id: session.id,
-      },
-      data: {
-        status: 'opened',
-        awaitUser: false,
-      },
+      where: { id: session.id },
+      data: { status: 'opened', awaitUser: false },
     });
-
     if (!content) {
       if (settings.unknownMessage) {
         this.waMonitor.waInstances[instance.instanceName].textMessage(
@@ -395,34 +413,20 @@ export class EvolutionBotService {
       }
       return;
     }
-
     if (settings.keywordFinish && content.toLowerCase() === settings.keywordFinish.toLowerCase()) {
       if (settings.keepOpen) {
         await this.prismaRepository.integrationSession.update({
-          where: {
-            id: session.id,
-          },
-          data: {
-            status: 'closed',
-          },
+          where: { id: session.id },
+          data: { status: 'closed' },
         });
       } else {
         await this.prismaRepository.integrationSession.deleteMany({
-          where: {
-            botId: bot.id,
-            remoteJid: remoteJid,
-          },
+          where: { botId: n8n.id, remoteJid: remoteJid },
         });
       }
       return;
     }
-
-    const message = await this.sendMessageToBot(instance, session, bot, remoteJid, pushName, content);
-
-    if (!message) return;
-
-    await this.sendMessageWhatsApp(instance, remoteJid, session, settings, message);
-
+    await this.sendMessageToBot(instance, session, settings, n8n, remoteJid, pushName, content);
     return;
   }
 }

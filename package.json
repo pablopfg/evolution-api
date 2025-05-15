@@ -55,7 +55,7 @@
     "@figuro/chatwoot-sdk": "^1.1.17",
     "@hapi/boom": "^10.0.1",
     "@paralleldrive/cuid2": "^2.2.2",
-    "@prisma/client": "^6.7.0",
+    "@prisma/client": "^6.8.1",
     "@sentry/node": "^9.19.0",
     "amqplib": "^0.10.8",
     "axios": "^1.9.0",

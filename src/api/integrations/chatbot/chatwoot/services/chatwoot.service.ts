@@ -929,7 +929,7 @@ export class ChatwootService {
     quotedMsg?: MessageModel,
   ) {
     if (sourceId && this.isImportHistoryAvailable()) {
-      const messageAlreadySaved = await chatwootImport.getExistingSourceIds([sourceId]);
+      const messageAlreadySaved = await chatwootImport.getExistingSourceIds([sourceId], conversationId);
       if (messageAlreadySaved) {
         if (messageAlreadySaved.size > 0) {
           this.logger.warn('Message already saved on chatwoot');

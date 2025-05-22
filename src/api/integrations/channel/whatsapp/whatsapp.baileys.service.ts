@@ -1173,8 +1173,8 @@ export class BaileysStartupService extends ChannelStartupService {
             const oldMessage = await this.getMessage(editedMessage.key, true);
             if ((oldMessage as any)?.id) {
               const editedMessageTimestamp = Long.isLong(editedMessage?.timestampMs)
-                ? editedMessage.timestampMs?.toNumber()
-                : (editedMessage.timestampMs as number);
+                ? Math.floor(editedMessage.timestampMs.toNumber() / 1000)
+                : Math.floor((editedMessage.timestampMs as number) / 1000);
 
               await this.prismaRepository.message.update({
                 where: { id: (oldMessage as any).id },
@@ -1205,7 +1205,7 @@ export class BaileysStartupService extends ChannelStartupService {
             continue;
           }
 
-          await this.baileysCache.set(messageKey, true, 30 * 60);
+          await this.baileysCache.set(messageKey, true, 5 * 60);
 
           if (
             (type !== 'notify' && type !== 'append') ||
@@ -1298,11 +1298,7 @@ export class BaileysStartupService extends ChannelStartupService {
             });
 
             if (openAiDefaultSettings && openAiDefaultSettings.openaiCredsId && openAiDefaultSettings.speechToText) {
-              messageRaw.message.speechToText = await this.openaiService.speechToText(
-                openAiDefaultSettings.OpenaiCreds,
-                received,
-                this.client.updateMediaMessage,
-              );
+              messageRaw.message.speechToText = await this.openaiService.speechToText(received);
             }
           }
 
@@ -1311,21 +1307,31 @@ export class BaileysStartupService extends ChannelStartupService {
               data: messageRaw,
             });
 
-            if (received.key.fromMe === false) {
-              if (msg.status === status[3]) {
-                this.logger.log(`Update not read messages ${received.key.remoteJid}`);
+            const { remoteJid } = received.key;
+            const timestamp = msg.messageTimestamp;
+            const fromMe = received.key.fromMe.toString();
+            const messageKey = `${remoteJid}_${timestamp}_${fromMe}`;
 
-                await this.updateChatUnreadMessages(received.key.remoteJid);
-              } else if (msg.status === status[4]) {
-                this.logger.log(`Update readed messages ${received.key.remoteJid} - ${msg.messageTimestamp}`);
+            const cachedTimestamp = await this.baileysCache.get(messageKey);
 
-                await this.updateMessagesReadedByTimestamp(received.key.remoteJid, msg.messageTimestamp);
+            if (!cachedTimestamp) {
+              if (!received.key.fromMe) {
+                if (msg.status === status[3]) {
+                  this.logger.log(`Update not read messages ${remoteJid}`);
+                  await this.updateChatUnreadMessages(remoteJid);
+                } else if (msg.status === status[4]) {
+                  this.logger.log(`Update readed messages ${remoteJid} - ${timestamp}`);
+                  await this.updateMessagesReadedByTimestamp(remoteJid, timestamp);
+                }
+              } else {
+                // is send message by me
+                this.logger.log(`Update readed messages ${remoteJid} - ${timestamp}`);
+                await this.updateMessagesReadedByTimestamp(remoteJid, timestamp);
               }
-            } else {
-              // is send message by me
-              this.logger.log(`Update readed messages ${received.key.remoteJid} - ${msg.messageTimestamp}`);
 
-              await this.updateMessagesReadedByTimestamp(received.key.remoteJid, msg.messageTimestamp);
+              await this.baileysCache.set(messageKey, true, 5 * 60);
+            } else {
+              this.logger.info(`Update readed messages duplicated ignored [avoid deadlock]: ${messageKey}`);
             }
 
             if (isMedia) {
@@ -1389,7 +1395,24 @@ export class BaileysStartupService extends ChannelStartupService {
                   },
                 );
 
-                messageRaw.message.base64 = buffer ? buffer.toString('base64') : undefined;
+                if (buffer) {
+                  messageRaw.message.base64 = buffer.toString('base64');
+                } else {
+                  // retry to download media
+                  const buffer = await downloadMediaMessage(
+                    { key: received.key, message: received?.message },
+                    'buffer',
+                    {},
+                    {
+                      logger: P({ level: 'error' }) as any,
+                      reuploadRequest: this.client.updateMediaMessage,
+                    },
+                  );
+
+                  if (buffer) {
+                    messageRaw.message.base64 = buffer.toString('base64');
+                  }
+                }
               } catch (error) {
                 this.logger.error(['Error converting media to base64', error?.message]);
               }
@@ -1481,7 +1504,7 @@ export class BaileysStartupService extends ChannelStartupService {
         const cached = await this.baileysCache.get(updateKey);
 
         if (cached) {
-          this.logger.info(`Message duplicated ignored: ${key.id}`);
+          this.logger.info(`Message duplicated ignored [avoid deadlock]: ${updateKey}`);
           continue;
         }
 
@@ -1497,7 +1520,7 @@ export class BaileysStartupService extends ChannelStartupService {
           }
         }
 
-        if (key.remoteJid !== 'status@broadcast') {
+        if (key.remoteJid !== 'status@broadcast' && key.id !== undefined) {
           let pollUpdates: any;
 
           if (update.pollUpdates) {
@@ -1525,18 +1548,19 @@ export class BaileysStartupService extends ChannelStartupService {
             continue;
           }
 
+          const message: any = {
+            messageId: findMessage.id,
+            keyId: key.id,
+            remoteJid: key?.remoteJid,
+            fromMe: key.fromMe,
+            participant: key?.remoteJid,
+            status: status[update.status] ?? 'DELETED',
+            pollUpdates,
+            instanceId: this.instanceId,
+          };
+
           if (update.message === null && update.status === undefined) {
             this.sendDataWebhook(Events.MESSAGES_DELETE, key);
-
-            const message: any = {
-              messageId: findMessage.id,
-              keyId: key.id,
-              remoteJid: key.remoteJid,
-              fromMe: key.fromMe,
-              participant: key?.remoteJid,
-              status: 'DELETED',
-              instanceId: this.instanceId,
-            };
 
             if (this.configService.get<Database>('DATABASE').SAVE_DATA.MESSAGE_UPDATE)
               await this.prismaRepository.messageUpdate.create({
@@ -1556,28 +1580,31 @@ export class BaileysStartupService extends ChannelStartupService {
             if (!key.fromMe && key.remoteJid) {
               readChatToUpdate[key.remoteJid] = true;
 
-              if (status[update.status] === status[4]) {
-                this.logger.log(`Update as read ${key.remoteJid} - ${findMessage.messageTimestamp}`);
-                this.updateMessagesReadedByTimestamp(key.remoteJid, findMessage.messageTimestamp);
+              const { remoteJid } = key;
+              const timestamp = findMessage.messageTimestamp;
+              const fromMe = key.fromMe.toString();
+              const messageKey = `${remoteJid}_${timestamp}_${fromMe}`;
+
+              const cachedTimestamp = await this.baileysCache.get(messageKey);
+
+              if (!cachedTimestamp) {
+                if (status[update.status] === status[4]) {
+                  this.logger.log(`Update as read in message.update ${remoteJid} - ${timestamp}`);
+                  await this.updateMessagesReadedByTimestamp(remoteJid, timestamp);
+                  await this.baileysCache.set(messageKey, true, 5 * 60);
+                }
+
+                await this.prismaRepository.message.update({
+                  where: { id: findMessage.id },
+                  data: { status: status[update.status] },
+                });
+              } else {
+                this.logger.info(
+                  `Update readed messages duplicated ignored in message.update [avoid deadlock]: ${messageKey}`,
+                );
               }
             }
-
-            await this.prismaRepository.message.update({
-              where: { id: findMessage.id },
-              data: { status: status[update.status] },
-            });
           }
-
-          const message: any = {
-            messageId: findMessage.id,
-            keyId: key.id,
-            remoteJid: key.remoteJid,
-            fromMe: key.fromMe,
-            participant: key?.remoteJid,
-            status: status[update.status],
-            pollUpdates,
-            instanceId: this.instanceId,
-          };
 
           this.sendDataWebhook(Events.MESSAGES_UPDATE, message);
 
@@ -2297,11 +2324,7 @@ export class BaileysStartupService extends ChannelStartupService {
         });
 
         if (openAiDefaultSettings && openAiDefaultSettings.openaiCredsId && openAiDefaultSettings.speechToText) {
-          messageRaw.message.speechToText = await this.openaiService.speechToText(
-            openAiDefaultSettings.OpenaiCreds,
-            messageRaw,
-            this.client.updateMediaMessage,
-          );
+          messageRaw.message.speechToText = await this.openaiService.speechToText(messageRaw);
         }
       }
 
@@ -2373,7 +2396,24 @@ export class BaileysStartupService extends ChannelStartupService {
               },
             );
 
-            messageRaw.message.base64 = buffer ? buffer.toString('base64') : undefined;
+            if (buffer) {
+              messageRaw.message.base64 = buffer.toString('base64');
+            } else {
+              // retry to download media
+              const buffer = await downloadMediaMessage(
+                { key: messageRaw.key, message: messageRaw?.message },
+                'buffer',
+                {},
+                {
+                  logger: P({ level: 'error' }) as any,
+                  reuploadRequest: this.client.updateMediaMessage,
+                },
+              );
+
+              if (buffer) {
+                messageRaw.message.base64 = buffer.toString('base64');
+              }
+            }
           } catch (error) {
             this.logger.error(['Error converting media to base64', error?.message]);
           }
@@ -3733,6 +3773,10 @@ export class BaileysStartupService extends ChannelStartupService {
         if (msg.message[subtype]) {
           msg.message = msg.message[subtype].message;
         }
+      }
+
+      if ('messageContextInfo' in msg.message && Object.keys(msg.message).length === 1) {
+        throw 'The message is messageContextInfo';
       }
 
       let mediaMessage: any;

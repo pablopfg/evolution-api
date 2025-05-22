@@ -1,13 +1,14 @@
 import { TriggerOperator, TriggerType } from '@prisma/client';
 
-import { BaseChatbotDto, BaseChatbotSettingDto } from '../../base-chatbot.dto';
-
-export class EvolutionBotDto extends BaseChatbotDto {
-  apiUrl: string;
-  apiKey: string;
+/**
+ * Base DTO for all chatbot integrations
+ * Contains common properties shared by all chatbot types
+ */
+export class BaseChatbotDto {
   enabled?: boolean;
+  description: string;
   expire?: number;
-  keywordFinish?: string | null;
+  keywordFinish?: string;
   delayMessage?: number;
   unknownMessage?: string;
   listeningFromMe?: boolean;
@@ -17,22 +18,25 @@ export class EvolutionBotDto extends BaseChatbotDto {
   triggerType: TriggerType;
   triggerOperator?: TriggerOperator;
   triggerValue?: string;
-  ignoreJids?: any;
+  ignoreJids?: string[];
   splitMessages?: boolean;
   timePerChar?: number;
 }
 
-export class EvolutionBotSettingDto extends BaseChatbotSettingDto {
+/**
+ * Base settings DTO for all chatbot integrations
+ */
+export class BaseChatbotSettingDto {
   expire?: number;
-  keywordFinish?: string | null;
+  keywordFinish?: string;
   delayMessage?: number;
   unknownMessage?: string;
   listeningFromMe?: boolean;
   stopBotFromMe?: boolean;
   keepOpen?: boolean;
   debounceTime?: number;
-  botIdFallback?: string;
   ignoreJids?: any;
   splitMessages?: boolean;
   timePerChar?: number;
+  fallbackId?: string; // Unified fallback ID field for all integrations
 }

@@ -5,14 +5,21 @@ import { Auth, ConfigService, HttpServer } from '@config/env.config';
 import { IntegrationSession, N8n, N8nSetting } from '@prisma/client';
 import { sendTelemetry } from '@utils/sendTelemetry';
 import axios from 'axios';
-import { downloadMediaMessage } from 'baileys';
 
 import { BaseChatbotService } from '../../base-chatbot.service';
+import { OpenaiService } from '../../openai/services/openai.service';
 import { N8nDto } from '../dto/n8n.dto';
-
 export class N8nService extends BaseChatbotService<N8n, N8nSetting> {
-  constructor(waMonitor: WAMonitoringService, prismaRepository: PrismaRepository, configService: ConfigService) {
+  private openaiService: OpenaiService;
+
+  constructor(
+    waMonitor: WAMonitoringService,
+    prismaRepository: PrismaRepository,
+    configService: ConfigService,
+    openaiService: OpenaiService,
+  ) {
     super(waMonitor, prismaRepository, 'N8nService', configService);
+    this.openaiService = openaiService;
   }
 
   /**
@@ -128,17 +135,16 @@ export class N8nService extends BaseChatbotService<N8n, N8nSetting> {
         fromMe: msg?.key?.fromMe,
         instanceName: instance.instanceName,
         serverUrl: this.configService.get<HttpServer>('SERVER').URL,
-        apiKey: this.configService.get<Auth>('AUTHENTICATION').API_KEY.KEY,
+        apiKey: instance.token,
       };
 
       // Handle audio messages
       if (this.isAudioMessage(content) && msg) {
         try {
           this.logger.debug(`[N8n] Downloading audio for Whisper transcription`);
-          const mediaBuffer = await downloadMediaMessage({ key: msg.key, message: msg.message }, 'buffer', {});
-          const transcribedText = await this.speechToText(mediaBuffer);
-          if (transcribedText) {
-            payload.chatInput = transcribedText;
+          const transcription = await this.openaiService.speechToText(msg);
+          if (transcription) {
+            payload.chatInput = transcription;
           } else {
             payload.chatInput = '[Audio message could not be transcribed]';
           }
@@ -180,7 +186,7 @@ export class N8nService extends BaseChatbotService<N8n, N8nSetting> {
     while ((match = linkRegex.exec(message)) !== null) {
       const [fullMatch, exclamation, altText, url] = match;
       const mediaType = this.getMediaType(url);
-      const beforeText = message.slice(lastIndex, match.index);
+      const beforeText = message.slice(lastIndex, match.index).trim();
 
       if (beforeText) {
         textBuffer += beforeText;
@@ -292,7 +298,7 @@ export class N8nService extends BaseChatbotService<N8n, N8nSetting> {
       lastIndex = match.index + fullMatch.length;
     }
 
-    const remainingText = message.slice(lastIndex);
+    const remainingText = message.slice(lastIndex).trim();
     if (remainingText) {
       textBuffer += remainingText;
     }
@@ -433,16 +439,6 @@ export class N8nService extends BaseChatbotService<N8n, N8nSetting> {
 
       // If session exists but is paused
       if (session.status === 'paused') {
-        await this.prismaRepository.integrationSession.update({
-          where: {
-            id: session.id,
-          },
-          data: {
-            status: 'opened',
-            awaitUser: true,
-          },
-        });
-
         return;
       }
 

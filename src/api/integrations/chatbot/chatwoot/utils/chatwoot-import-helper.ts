@@ -180,11 +180,9 @@ class ChatwootImport {
       const formattedSourceIds = sourceIds.map((sourceId) => `WAID:${sourceId.replace('WAID:', '')}`); // Make sure the sourceId is always formatted as WAID:1234567890
       let query: string;
       if (conversationId) {
-        query = 'SELECT source_id FROM messages WHERE source_id = ANY($1)';
-      }
-
-      if (!conversationId) {
         query = 'SELECT source_id FROM messages WHERE source_id = ANY($1) AND conversation_id = $2';
+      } else {
+        query = 'SELECT source_id FROM messages WHERE source_id = ANY($1)';
       }
 
       const pgClient = postgresClient.getChatwootConnection();
@@ -338,6 +336,7 @@ class ChatwootImport {
 
       this.deleteHistoryMessages(instance);
       this.deleteRepositoryMessagesCache(instance);
+      return 0;
     }
   }
 

@@ -49,7 +49,7 @@ export class ChannelStartupService {
 
   public typebotService = new TypebotService(waMonitor, this.configService, this.prismaRepository, this.openaiService);
 
-  public difyService = new DifyService(waMonitor, this.configService, this.prismaRepository, this.openaiService);
+  public difyService = new DifyService(waMonitor, this.prismaRepository, this.configService, this.openaiService);
 
   public setInstance(instance: InstanceDto) {
     this.logger.setInstance(instance.instanceName);
@@ -677,6 +677,14 @@ export class ChannelStartupService {
   }
 
   public async fetchStatusMessage(query: any) {
+    if (!query?.offset) {
+      query.offset = 50;
+    }
+
+    if (!query?.page) {
+      query.page = 1;
+    }
+
     return await this.prismaRepository.messageUpdate.findMany({
       where: {
         instanceId: this.instanceId,

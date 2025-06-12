@@ -67,6 +67,7 @@ router
       version: packageJson.version,
       clientName: process.env.DATABASE_CONNECTION_CLIENT_NAME,
       manager: !serverConfig.DISABLE_MANAGER ? `https://${req.get('host')}/manager` : undefined,
+      whatsappWebVersion: process.env.CONFIG_SESSION_PHONE_VERSION,
     });
   })
   .post('/verify-creds', authGuard['apikey'], async (req, res) => {

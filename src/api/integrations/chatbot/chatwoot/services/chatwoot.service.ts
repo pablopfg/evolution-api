@@ -721,10 +721,7 @@ export class ChatwootService {
             }
           } else {
             inboxConversation = contactConversations.payload.find(
-              (conversation) =>
-                conversation &&
-                conversation.status !== 'resolved' &&
-                conversation.inbox_id == filterInbox.id,
+              (conversation) => conversation && conversation.status !== 'resolved' && conversation.inbox_id == filterInbox.id,
             );
             this.logger.verbose(`Found conversation: ${JSON.stringify(inboxConversation)}`);
           }

@@ -232,6 +232,7 @@ export class ChatwootService {
         '123456',
         inboxId,
         false,
+        false,
         organization ? organization : 'EvolutionAPI',
         logo ? logo : 'https://evolution-api.com/files/evolution-api-favicon.png',
       )) as any);
@@ -291,6 +292,7 @@ export class ChatwootService {
     phoneNumber: string,
     inboxId: number,
     isGroup: boolean,
+    isLid: boolean,
     name?: string,
     avatar_url?: string,
     jid?: string,
@@ -303,7 +305,7 @@ export class ChatwootService {
     }
 
     let data: any = {};
-    if (!isGroup) {
+    if (!isGroup && !isLid) {
       data = {
         inbox_id: inboxId,
         name: name || phoneNumber,
@@ -415,8 +417,9 @@ export class ChatwootService {
 
     let query: any;
     const isGroup = phoneNumber.includes('@g.us');
+    const isLid = phoneNumber.includes('@lid');
 
-    if (!isGroup) {
+    if (!isGroup && !isLid) {
       query = `+${phoneNumber}`;
     } else {
       query = phoneNumber;
@@ -424,7 +427,7 @@ export class ChatwootService {
 
     let contact: any;
 
-    if (isGroup) {
+    if (isGroup || isLid) {
       contact = await client.contacts.search({
         accountId: this.provider.accountId,
         q: query,
@@ -444,7 +447,7 @@ export class ChatwootService {
       return null;
     }
 
-    if (!isGroup) {
+    if (!isGroup && !isLid) {
       return contact.payload.length > 1 ? this.findContactInContactList(contact.payload, query) : contact.payload[0];
     } else {
       return contact.payload.find((contact) => contact.identifier === query);
@@ -594,12 +597,13 @@ export class ChatwootService {
         if (!client) return null;
 
         const isGroup = remoteJid.includes('@g.us');
-        const chatId = isGroup ? remoteJid : remoteJid.split('@')[0];
+        const isLid = remoteJid.includes('@lid');
+        const chatId = isGroup || isLid ? remoteJid : remoteJid.split('@')[0];
         let nameContact = !body.key.fromMe ? body.pushName : chatId;
         const filterInbox = await this.getInbox(instance);
         if (!filterInbox) return null;
 
-        if (isGroup) {
+        if (isGroup || isLid) {
           this.logger.verbose(`Processing group conversation`);
           const group = await this.waMonitor.waInstances[instance.instanceName].client.groupMetadata(chatId);
           this.logger.verbose(`Group metadata: ${JSON.stringify(group)}`);
@@ -673,6 +677,7 @@ export class ChatwootService {
             chatId,
             filterInbox.id,
             isGroup,
+            isLid,
             nameContact,
             picture_url.profilePictureUrl || null,
             jid,
@@ -705,7 +710,7 @@ export class ChatwootService {
           if (this.provider.reopenConversation) {
             this.logger.verbose(`Found conversation in reopenConversation mode: ${JSON.stringify(inboxConversation)}`);
 
-            if (this.provider.conversationPending && inboxConversation.status !== 'open') {
+            if (inboxConversation && this.provider.conversationPending && inboxConversation.status !== 'open') {
               await client.conversations.toggleStatus({
                 accountId: this.provider.accountId,
                 conversationId: inboxConversation.id,
@@ -716,7 +721,7 @@ export class ChatwootService {
             }
           } else {
             inboxConversation = contactConversations.payload.find(
-              (conversation) => conversation.status !== 'resolved' && conversation.inbox_id == filterInbox.id,
+              (conversation) => conversation && conversation.status !== 'resolved' && conversation.inbox_id == filterInbox.id,
             );
             this.logger.verbose(`Found conversation: ${JSON.stringify(inboxConversation)}`);
           }

@@ -442,7 +442,21 @@ export class ChatwootService {
       });
     }
 
-    if (!contact && contact?.payload?.length === 0) {
+    // Se não encontrou e não é @lid, tenta buscar pelo número limpo
+    if ((!contact || contact?.payload?.length === 0) && !isLid) {
+      const cleanNumber = `+${phoneNumber.replace('@lid', '')}`;
+      this.logger.verbose(`Contact not found by identifier, trying clean number: ${cleanNumber}`);
+
+      contact = await chatwootRequest(this.getClientCwConfig(), {
+        method: 'POST',
+        url: `/api/v1/accounts/${this.provider.accountId}/contacts/filter`,
+        body: {
+          payload: this.getFilterPayload(cleanNumber),
+        },
+      });
+    }
+
+    if (!contact || contact?.payload?.length === 0) {
       this.logger.warn('contact not found');
       return null;
     }
@@ -545,6 +559,24 @@ export class ChatwootService {
     return filterPayload;
   }
 
+  private normalizeContactIdentifier(msg: any) {
+    // Priority: senderLid > participantLid > remoteJid with @lid > normal number
+    const lidIdentifier =
+      msg.key.senderLid || msg.key.participantLid || (msg.key.remoteJid?.includes('@lid') ? msg.key.remoteJid : null);
+
+    if (lidIdentifier) {
+      return lidIdentifier;
+    }
+
+    // If it doesn't have @lid, return the normal number
+    // Try to get the number from senderPn first, then participant, then remoteJid
+    const getNumber = (value: string) => {
+      return value?.includes('@s.whatsapp.net') ? value.split('@')[0] : value;
+    };
+
+    return getNumber(msg.key.senderPn) || getNumber(msg.key.participant) || getNumber(msg.key.remoteJid);
+  }
+
   public async createConversation(instance: InstanceDto, body: any) {
     const remoteJid = body.key.remoteJid;
     const cacheKey = `${instance.instanceName}:createConversation-${remoteJid}`;
@@ -598,10 +630,15 @@ export class ChatwootService {
 
         const isGroup = remoteJid.includes('@g.us');
         const isLid = remoteJid.includes('@lid');
-        const chatId = isGroup || isLid ? remoteJid : remoteJid.split('@')[0];
-        let nameContact = !body.key.fromMe ? body.pushName : chatId;
+        this.logger.verbose('is group: ' + isGroup);
+
+        const chatId = this.normalizeContactIdentifier(body);
+        this.logger.verbose('chat id: ' + chatId);
+
         const filterInbox = await this.getInbox(instance);
         if (!filterInbox) return null;
+
+        let nameContact = !body.key.fromMe ? body.pushName : chatId;
 
         if (isGroup || isLid) {
           this.logger.verbose(`Processing group conversation`);
@@ -615,7 +652,10 @@ export class ChatwootService {
           );
           this.logger.verbose(`Participant profile picture URL: ${JSON.stringify(picture_url)}`);
 
-          const findParticipant = await this.findContact(instance, body.key.participant.split('@')[0]);
+          const participantIdentifier = this.normalizeContactIdentifier(body);
+          this.logger.verbose(`Normalized participant identifier: ${participantIdentifier}`);
+
+          const findParticipant = await this.findContact(instance, participantIdentifier);
           this.logger.verbose(`Found participant: ${JSON.stringify(findParticipant)}`);
 
           if (findParticipant) {
@@ -628,7 +668,7 @@ export class ChatwootService {
           } else {
             await this.createContact(
               instance,
-              body.key.participant.split('@')[0],
+              participantIdentifier,
               filterInbox.id,
               false,
               body.pushName,
@@ -721,7 +761,8 @@ export class ChatwootService {
             }
           } else {
             inboxConversation = contactConversations.payload.find(
-              (conversation) => conversation && conversation.status !== 'resolved' && conversation.inbox_id == filterInbox.id,
+              (conversation) =>
+                conversation && conversation.status !== 'resolved' && conversation.inbox_id == filterInbox.id,
             );
             this.logger.verbose(`Found conversation: ${JSON.stringify(inboxConversation)}`);
           }

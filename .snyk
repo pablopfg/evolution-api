@@ -1,0 +1,14 @@
+version: v1.22.0
+
+ignore:
+  express@5.1.0:
+    - reason: "Express 5 é incompatível com express-async-errors e outras dependências"
+      expires: 2025-12-31T00:00:00.000Z
+
+  redis@5.1.1:
+    - reason: "Redis 5 possui mudanças que quebram integração atual com cache/cliente usado"
+      expires: 2025-12-31T00:00:00.000Z
+
+  openai@5.0.1:
+    - reason: "OpenAI 5 introduz mudanças de API incompatíveis com a versão 4 usada no projeto"
+      expires: 2025-12-31T00:00:00.000Z

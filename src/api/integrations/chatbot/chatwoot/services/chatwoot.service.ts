@@ -26,7 +26,7 @@ import axios from 'axios';
 import { proto } from 'baileys';
 import dayjs from 'dayjs';
 import FormData from 'form-data';
-import Jimp from 'jimp';
+import * as Jimp from 'jimp';
 import Long from 'long';
 import mimeTypes from 'mime-types';
 import path from 'path';

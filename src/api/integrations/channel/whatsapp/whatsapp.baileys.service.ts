@@ -123,7 +123,7 @@ import makeWASocket, {
   WABrowserDescription,
   WAMediaUpload,
   WAMessage,
-  WAMessageUpdate,
+  WAMessageKey,
   WAPresence,
   WASocket,
 } from 'baileys';
@@ -888,7 +888,7 @@ export class BaileysStartupService extends ChannelStartupService {
     }: {
       chats: Chat[];
       contacts: Contact[];
-      messages: proto.IWebMessageInfo[];
+      messages: WAMessage[];
       isLatest?: boolean;
       progress?: number;
       syncType?: proto.HistorySync.HistorySyncType;
@@ -974,6 +974,10 @@ export class BaileysStartupService extends ChannelStartupService {
             continue;
           }
 
+          if (m.key.remoteJid?.includes('@lid') && m.key.senderPn) {
+            m.key.remoteJid = m.key.senderPn;
+          }
+
           if (Long.isLong(m?.messageTimestamp)) {
             m.messageTimestamp = m.messageTimestamp?.toNumber();
           }
@@ -1031,16 +1035,24 @@ export class BaileysStartupService extends ChannelStartupService {
     },
 
     'messages.upsert': async (
-      { messages, type, requestId }: { messages: proto.IWebMessageInfo[]; type: MessageUpsertType; requestId?: string },
+      { messages, type, requestId }: { messages: WAMessage[]; type: MessageUpsertType; requestId?: string },
       settings: any,
     ) => {
       try {
         for (const received of messages) {
+          if (received.key.remoteJid?.includes('@lid') && received.key.senderPn) {
+            (received.key as { previousRemoteJid?: string | null }).previousRemoteJid = received.key.remoteJid;
+            received.key.remoteJid = received.key.senderPn;
+          }
           if (
             received?.messageStubParameters?.some?.((param) =>
-              ['No matching sessions found for message', 'Bad MAC', 'failed to decrypt message', 'SessionError'].some(
-                (err) => param?.includes?.(err),
-              ),
+              [
+                'No matching sessions found for message',
+                'Bad MAC',
+                'failed to decrypt message',
+                'SessionError',
+                'Invalid PreKey ID',
+              ].some((err) => param?.includes?.(err)),
             )
           ) {
             this.logger.warn(`Message ignored with messageStubParameters: ${JSON.stringify(received, null, 2)}`);
@@ -1375,7 +1387,7 @@ export class BaileysStartupService extends ChannelStartupService {
       }
     },
 
-    'messages.update': async (args: WAMessageUpdate[], settings: any) => {
+    'messages.update': async (args: { update: Partial<WAMessage>; key: WAMessageKey }[], settings: any) => {
       this.logger.log(`Update messages ${JSON.stringify(args, undefined, 2)}`);
 
       const readChatToUpdate: Record<string, true> = {}; // {remoteJid: true}
@@ -1383,6 +1395,10 @@ export class BaileysStartupService extends ChannelStartupService {
       for await (const { key, update } of args) {
         if (settings?.groupsIgnore && key.remoteJid?.includes('@g.us')) {
           continue;
+        }
+
+        if (key.remoteJid?.includes('@lid') && key.senderPn) {
+          key.remoteJid = key.senderPn;
         }
 
         const updateKey = `${this.instance.id}_${key.id}_${update.status}`;
@@ -3476,16 +3492,34 @@ export class BaileysStartupService extends ChannelStartupService {
       let mediaMessage: any;
       let mediaType: string;
 
-      for (const type of TypeMediaMessage) {
-        mediaMessage = msg.message[type];
-        if (mediaMessage) {
-          mediaType = type;
-          break;
-        }
-      }
+      if (msg.message?.templateMessage) {
+        const template =
+          msg.message.templateMessage.hydratedTemplate || msg.message.templateMessage.hydratedFourRowTemplate;
 
-      if (!mediaMessage) {
-        throw 'The message is not of the media type';
+        for (const type of TypeMediaMessage) {
+          if (template[type]) {
+            mediaMessage = template[type];
+            mediaType = type;
+            msg.message = { [type]: { ...template[type], url: template[type].staticUrl } };
+            break;
+          }
+        }
+
+        if (!mediaMessage) {
+          throw 'Template message does not contain a supported media type';
+        }
+      } else {
+        for (const type of TypeMediaMessage) {
+          mediaMessage = msg.message[type];
+          if (mediaMessage) {
+            mediaType = type;
+            break;
+          }
+        }
+
+        if (!mediaMessage) {
+          throw 'The message is not of the media type';
+        }
       }
 
       if (typeof mediaMessage['mediaKey'] === 'object') {
@@ -3505,6 +3539,8 @@ export class BaileysStartupService extends ChannelStartupService {
         this.logger.error('Download Media failed, trying to retry in 5 seconds...');
         await new Promise((resolve) => setTimeout(resolve, 5000));
         const mediaType = Object.keys(msg.message).find((key) => key.endsWith('Message'));
+        if (!mediaType) throw new Error('Could not determine mediaType for fallback');
+
         try {
           const media = await downloadContentFromMessage(
             {
@@ -3523,6 +3559,7 @@ export class BaileysStartupService extends ChannelStartupService {
           this.logger.info('Download Media with downloadContentFromMessage was successful!');
         } catch (fallbackErr) {
           this.logger.error('Download Media with downloadContentFromMessage also failed!');
+          throw fallbackErr;
         }
       }
       const typeMessage = getContentType(msg.message);

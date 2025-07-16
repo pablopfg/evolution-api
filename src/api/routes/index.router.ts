@@ -7,9 +7,8 @@ import { EventRouter } from '@api/integrations/event/event.router';
 import { StorageRouter } from '@api/integrations/storage/storage.router';
 import { configService } from '@config/env.config';
 import { fetchLatestWaWebVersion } from '@utils/fetchLatestWaWebVersion';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import fs from 'fs';
-import mimeTypes from 'mime-types';
 import path from 'path';
 
 import { BusinessRouter } from './business.router';
@@ -44,23 +43,8 @@ const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 
 if (!serverConfig.DISABLE_MANAGER) router.use('/manager', new ViewsRouter().router);
 
-router.get('/assets/*', (req, res) => {
-  const SAFE_ASSETS_PATH = path.resolve(process.cwd(), 'manager', 'dist', 'assets');
-  const fileName = path.basename(req.params[0]);
-  const requestedPath = path.join(SAFE_ASSETS_PATH, fileName);
-
-  if (!requestedPath.startsWith(SAFE_ASSETS_PATH + path.sep)) {
-    return res.status(HttpStatus.FORBIDDEN).send('Access Forbidden');
-  }
-
-  try {
-    const fileContent = fs.readFileSync(requestedPath);
-    res.set('Content-Type', mimeTypes.lookup(requestedPath) || 'application/octet-stream');
-    res.send(fileContent);
-  } catch (error) {
-    res.status(HttpStatus.NOT_FOUND).send('File not found');
-  }
-});
+const SAFE_ASSETS_PATH = path.resolve(process.cwd(), 'manager', 'dist', 'assets');
+router.use('/assets', express.static(SAFE_ASSETS_PATH));
 
 router
   .use((req, res, next) => telemetry.collectTelemetry(req, res, next))

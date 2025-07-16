@@ -16,6 +16,7 @@ import axios from 'axios';
 import compression from 'compression';
 import cors from 'cors';
 import express, { json, NextFunction, Request, Response, urlencoded } from 'express';
+import helmet from 'helmet';
 import { join } from 'path';
 
 function initWA() {
@@ -35,6 +36,8 @@ async function bootstrap() {
 
   const prismaRepository = new PrismaRepository(configService);
   await prismaRepository.onModuleInit();
+
+  app.use(helmet());
 
   app.use(
     cors({
@@ -70,7 +73,7 @@ async function bootstrap() {
         const webhook = configService.get<Webhook>('WEBHOOK');
 
         if (webhook.EVENTS.ERRORS_WEBHOOK && webhook.EVENTS.ERRORS_WEBHOOK != '' && webhook.EVENTS.ERRORS) {
-          const tzoffset = new Date().getTimezoneOffset() * 60000; //offset in milliseconds
+          const tzoffset = new Date().getTimezoneOffset() * 60000;
           const localISOTime = new Date(Date.now() - tzoffset).toISOString();
           const now = localISOTime;
           const globalApiKey = configService.get<Auth>('AUTHENTICATION').API_KEY.KEY;
@@ -143,8 +146,6 @@ async function bootstrap() {
   if (process.env.SENTRY_DSN) {
     logger.info('Sentry - ON');
 
-    // Add this after all routes,
-    // but before any and other error-handling middlewares are defined
     Sentry.setupExpressErrorHandler(app);
   }
 

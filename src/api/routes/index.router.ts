@@ -45,16 +45,20 @@ const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 if (!serverConfig.DISABLE_MANAGER) router.use('/manager', new ViewsRouter().router);
 
 router.get('/assets/*', (req, res) => {
+  const SAFE_ASSETS_PATH = path.resolve(process.cwd(), 'manager', 'dist', 'assets');
   const fileName = req.params[0];
-  const basePath = path.join(process.cwd(), 'manager', 'dist');
+  const requestedPath = path.join(SAFE_ASSETS_PATH, fileName);
 
-  const filePath = path.join(basePath, 'assets/', fileName);
+  if (!requestedPath.startsWith(SAFE_ASSETS_PATH + path.sep)) {
+    return res.status(HttpStatus.FORBIDDEN).send('Access Forbidden');
+  }
 
-  if (fs.existsSync(filePath)) {
-    res.set('Content-Type', mimeTypes.lookup(filePath) || 'text/css');
-    res.send(fs.readFileSync(filePath));
-  } else {
-    res.status(404).send('File not found');
+  try {
+    const fileContent = fs.readFileSync(requestedPath);
+    res.set('Content-Type', mimeTypes.lookup(requestedPath) || 'application/octet-stream');
+    res.send(fileContent);
+  } catch (error) {
+    res.status(HttpStatus.NOT_FOUND).send('File not found');
   }
 });
 

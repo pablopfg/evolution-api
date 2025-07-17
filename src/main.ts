@@ -27,16 +27,6 @@ async function bootstrap() {
   const logger = new Logger('SERVER');
   const app = express();
 
-  let providerFiles: ProviderFiles = null;
-  if (configService.get<ProviderSession>('PROVIDER').ENABLED) {
-    providerFiles = new ProviderFiles(configService);
-    await providerFiles.onModuleInit();
-    logger.info('Provider:Files - ON');
-  }
-
-  const prismaRepository = new PrismaRepository(configService);
-  await prismaRepository.onModuleInit();
-
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -44,8 +34,13 @@ async function bootstrap() {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'", 'https://static.cloudflareinsights.com', 'https://gc.kis.v2.scr.kaspersky-labs.com'],
           styleSrc: ["'self'", "'unsafe-inline'", 'https://gc.kis.v2.scr.kaspersky-labs.com'],
-          imgSrc: ["'self'", 'data:', 'https://evolution-api.com'],
-          connectSrc: ["'self'", 'https://api.pablofreitasnutri.com.br', 'https://gc.kis.v2.scr.kaspersky-labs.com'],
+          imgSrc: ["'self'", 'data:', 'https://evolution-api.com', 'blob:'],
+          connectSrc: [
+            "'self'",
+            'https://api.pablofreitasnutri.com.br',
+            'https://gc.kis.v2.scr.kaspersky-labs.com',
+            configService.get<HttpServer>('SERVER').URL,
+          ],
           fontSrc: ["'self'", 'data:'],
           objectSrc: ["'none'"],
           frameAncestors: ["'none'"],
@@ -57,6 +52,16 @@ async function bootstrap() {
       crossOriginOpenerPolicy: false,
     }),
   );
+
+  let providerFiles: ProviderFiles = null;
+  if (configService.get<ProviderSession>('PROVIDER').ENABLED) {
+    providerFiles = new ProviderFiles(configService);
+    await providerFiles.onModuleInit();
+    logger.info('Provider:Files - ON');
+  }
+
+  const prismaRepository = new PrismaRepository(configService);
+  await prismaRepository.onModuleInit();
 
   app.use(
     cors({
@@ -73,17 +78,25 @@ async function bootstrap() {
       methods: [...configService.get<Cors>('CORS').METHODS],
       credentials: configService.get<Cors>('CORS').CREDENTIALS,
     }),
-    urlencoded({ extended: true, limit: '136mb' }),
-    json({ limit: '136mb' }),
+    urlencoded({ extended: true, limit: '10mb' }),
+    json({ limit: '10mb' }),
     compression(),
   );
 
   app.set('view engine', 'hbs');
-  app.set('views', join(ROOT_DIR, 'public'));
+  app.set('views', join(ROOT_DIR, 'views'));
   app.use('/store', express.static(join(ROOT_DIR, 'store')));
 
+  // Servindo a aplicação de frontend (SPA) do diretório /manager
+  app.use('/manager', express.static(join(ROOT_DIR, 'manager', 'dist')));
+  app.get('/manager/*', (req, res) => {
+    res.sendFile(join(ROOT_DIR, 'manager', 'dist', 'index.html'));
+  });
+
+  // --- ROTEADOR DA API ---
   app.use('/', router);
 
+  // --- MIDDLEWARES DE TRATAMENTO DE ERROS ---
   app.use(
     (err: Error, req: Request, res: Response, next: NextFunction) => {
       if (err) {

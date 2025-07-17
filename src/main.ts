@@ -1,4 +1,7 @@
+// Import this first from sentry instrument!
 import '@utils/instrumentSentry';
+
+// Now import other modules
 import { ProviderFiles } from '@api/provider/sessions';
 import { PrismaRepository } from '@api/repository/repository.service';
 import { HttpStatus, router } from '@api/routes/index.router';

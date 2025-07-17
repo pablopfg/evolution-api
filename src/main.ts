@@ -164,7 +164,6 @@ async function bootstrap() {
 
   if (process.env.SENTRY_DSN) {
     logger.info('Sentry - ON');
-    
     Sentry.setupExpressErrorHandler(app);
   }
 

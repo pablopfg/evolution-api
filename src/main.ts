@@ -16,7 +16,6 @@ import axios from 'axios';
 import compression from 'compression';
 import cors from 'cors';
 import express, { json, NextFunction, Request, Response, urlencoded } from 'express';
-import helmet from 'helmet';
 import { join } from 'path';
 
 function initWA() {
@@ -26,32 +25,6 @@ function initWA() {
 async function bootstrap() {
   const logger = new Logger('SERVER');
   const app = express();
-
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", 'https://static.cloudflareinsights.com', 'https://gc.kis.v2.scr.kaspersky-labs.com'],
-          styleSrc: ["'self'", "'unsafe-inline'", 'https://gc.kis.v2.scr.kaspersky-labs.com'],
-          imgSrc: ["'self'", 'data:', 'https://evolution-api.com', 'blob:'],
-          connectSrc: [
-            "'self'",
-            'https://api.pablofreitasnutri.com.br',
-            'https://gc.kis.v2.scr.kaspersky-labs.com',
-            configService.get<HttpServer>('SERVER').URL,
-          ],
-          fontSrc: ["'self'", 'data:'],
-          objectSrc: ["'none'"],
-          frameAncestors: ["'none'"],
-          baseUri: ["'self'"],
-          formAction: ["'self'"],
-        },
-      },
-      crossOriginEmbedderPolicy: false,
-      crossOriginOpenerPolicy: false,
-    }),
-  );
 
   let providerFiles: ProviderFiles = null;
   if (configService.get<ProviderSession>('PROVIDER').ENABLED) {
@@ -78,32 +51,26 @@ async function bootstrap() {
       methods: [...configService.get<Cors>('CORS').METHODS],
       credentials: configService.get<Cors>('CORS').CREDENTIALS,
     }),
-    urlencoded({ extended: true, limit: '10mb' }),
-    json({ limit: '10mb' }),
+    urlencoded({ extended: true, limit: '136mb' }),
+    json({ limit: '136mb' }),
     compression(),
   );
 
   app.set('view engine', 'hbs');
   app.set('views', join(ROOT_DIR, 'views'));
+  app.use(express.static(join(ROOT_DIR, 'public')));
+
   app.use('/store', express.static(join(ROOT_DIR, 'store')));
 
-  // Servindo a aplicação de frontend (SPA) do diretório /manager
-  app.use('/manager', express.static(join(ROOT_DIR, 'manager', 'dist')));
-  app.get('/manager/*', (req, res) => {
-    res.sendFile(join(ROOT_DIR, 'manager', 'dist', 'index.html'));
-  });
-
-  // --- ROTEADOR DA API ---
   app.use('/', router);
 
-  // --- MIDDLEWARES DE TRATAMENTO DE ERROS ---
   app.use(
     (err: Error, req: Request, res: Response, next: NextFunction) => {
       if (err) {
         const webhook = configService.get<Webhook>('WEBHOOK');
 
         if (webhook.EVENTS.ERRORS_WEBHOOK && webhook.EVENTS.ERRORS_WEBHOOK != '' && webhook.EVENTS.ERRORS) {
-          const tzoffset = new Date().getTimezoneOffset() * 60000;
+          const tzoffset = new Date().getTimezoneOffset() * 60000; //offset in milliseconds
           const localISOTime = new Date(Date.now() - tzoffset).toISOString();
           const now = localISOTime;
           const globalApiKey = configService.get<Auth>('AUTHENTICATION').API_KEY.KEY;
@@ -175,6 +142,9 @@ async function bootstrap() {
 
   if (process.env.SENTRY_DSN) {
     logger.info('Sentry - ON');
+
+    // Add this after all routes,
+    // but before any and other error-handling middlewares are defined
     Sentry.setupExpressErrorHandler(app);
   }
 

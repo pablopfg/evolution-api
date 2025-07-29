@@ -59,7 +59,7 @@
     "@sentry/node": "^9.43.0",
     "amqplib": "^0.10.5",
     "audio-decode": "^2.2.3",
-    "axios": "^1.7.9",
+    "axios": "^1.11.0",
     "baileys": "github:WhiskeySockets/Baileys",
     "class-validator": "^0.14.1",
     "compression": "^1.8.1",

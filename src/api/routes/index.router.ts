@@ -7,8 +7,9 @@ import { EventRouter } from '@api/integrations/event/event.router';
 import { StorageRouter } from '@api/integrations/storage/storage.router';
 import { configService } from '@config/env.config';
 import { fetchLatestWaWebVersion } from '@utils/fetchLatestWaWebVersion';
-import express, { Router } from 'express';
+import { Router } from 'express';
 import fs from 'fs';
+import mimeTypes from 'mime-types';
 import path from 'path';
 
 import { BusinessRouter } from './business.router';
@@ -43,8 +44,19 @@ const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 
 if (!serverConfig.DISABLE_MANAGER) router.use('/manager', new ViewsRouter().router);
 
-const SAFE_ASSETS_PATH = path.resolve(process.cwd(), 'manager', 'dist', 'assets');
-router.use('/assets', express.static(SAFE_ASSETS_PATH));
+router.get('/assets/*', (req, res) => {
+  const fileName = req.params[0];
+  const basePath = path.join(process.cwd(), 'manager', 'dist');
+
+  const filePath = path.join(basePath, 'assets/', fileName);
+
+  if (fs.existsSync(filePath)) {
+    res.set('Content-Type', mimeTypes.lookup(filePath) || 'text/css');
+    res.send(fs.readFileSync(filePath));
+  } else {
+    res.status(404).send('File not found');
+  }
+});
 
 router
   .use((req, res, next) => telemetry.collectTelemetry(req, res, next))
@@ -56,8 +68,8 @@ router
       version: packageJson.version,
       clientName: process.env.DATABASE_CONNECTION_CLIENT_NAME,
       manager: !serverConfig.DISABLE_MANAGER ? `${req.protocol}://${req.get('host')}/manager` : undefined,
-      whatsappWebVersion:
-        process.env.CONFIG_SESSION_PHONE_VERSION || (await fetchLatestWaWebVersion({})).version.join('.'),
+      documentation: `https://doc.evolution-api.com`,
+      whatsappWebVersion: (await fetchLatestWaWebVersion({})).version.join('.'),
     });
   })
   .post('/verify-creds', authGuard['apikey'], async (req, res) => {

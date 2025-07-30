@@ -11,7 +11,7 @@ export default defineConfig({
   minify: true,
   format: ['cjs', 'esm'],
   onSuccess: async () => {
-    cpSync('src/utils/translations', 'dist/translations', { recursive: true });
+    cpSync('src/utils/translations', 'dist/utils/translations', { recursive: true });
   },
   loader: {
     '.json': 'file',

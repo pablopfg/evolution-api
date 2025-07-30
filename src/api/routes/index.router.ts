@@ -8,6 +8,7 @@ import { StorageRouter } from '@api/integrations/storage/storage.router';
 import { configService } from '@config/env.config';
 import { fetchLatestWaWebVersion } from '@utils/fetchLatestWaWebVersion';
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import mimeTypes from 'mime-types';
 import path from 'path';
@@ -44,11 +45,20 @@ const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 
 if (!serverConfig.DISABLE_MANAGER) router.use('/manager', new ViewsRouter().router);
 
-router.get('/assets/*', (req, res) => {
-  const fileName = req.params[0];
-  const basePath = path.join(process.cwd(), 'manager', 'dist');
+const staticLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+});
 
-  const filePath = path.join(basePath, 'assets/', fileName);
+router.get('/assets/*', staticLimiter, (req, res) => {
+  const fileName = req.params[0];
+  const basePath = path.join(process.cwd(), 'manager', 'dist', 'assets');
+  const normalized = path.normalize(fileName).replace(/^(\.\.?(?:\\|\/))+/g, '');
+  const filePath = path.resolve(basePath, normalized);
+
+  if (!filePath.startsWith(basePath)) {
+    return res.status(400).send('Invalid path');
+  }
 
   if (fs.existsSync(filePath)) {
     res.set('Content-Type', mimeTypes.lookup(filePath) || 'text/css');

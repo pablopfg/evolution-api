@@ -3,9 +3,19 @@ import { prismaRepository } from '@api/server.module';
 import { Auth, configService, Database } from '@config/env.config';
 import { Logger } from '@config/logger.config';
 import { ForbiddenException, UnauthorizedException } from '@exceptions';
+import crypto from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 
 const logger = new Logger('GUARD');
+
+function safeCompare(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
 
 async function apikey(req: Request, _: Response, next: NextFunction) {
   const env = configService.get<Auth>('AUTHENTICATION').API_KEY;
@@ -16,7 +26,7 @@ async function apikey(req: Request, _: Response, next: NextFunction) {
     throw new UnauthorizedException();
   }
 
-  if (env.KEY === key) {
+  if (safeCompare(env.KEY, key)) {
     return next();
   }
 
@@ -30,7 +40,7 @@ async function apikey(req: Request, _: Response, next: NextFunction) {
       const instance = await prismaRepository.instance.findUnique({
         where: { name: param.instanceName },
       });
-      if (instance.token === key) {
+      if (instance.token && safeCompare(instance.token, key)) {
         return next();
       }
     } else {

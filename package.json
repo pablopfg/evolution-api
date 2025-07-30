@@ -64,6 +64,8 @@
     "class-validator": "^0.14.1",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
+    "express-rate-limit": "^6.7.0",
+    "helmet": "^7.0.0",
     "dayjs": "^1.11.13",
     "dotenv": "^17.2.1",
     "emoji-regex": "^10.4.0",

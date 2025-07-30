@@ -2,7 +2,7 @@ import { PrismaRepository } from '@api/repository/repository.service';
 import { WAMonitoringService } from '@api/services/monitor.service';
 import { ConfigService, HttpServer } from '@config/env.config';
 import { IntegrationSession, N8n, N8nSetting } from '@prisma/client';
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 
 import { BaseChatbotService } from '../../base-chatbot.service';
 import { OpenaiService } from '../../openai/services/openai.service';
@@ -73,7 +73,8 @@ export class N8nService extends BaseChatbotService<N8n, N8nSetting> {
         const auth = Buffer.from(`${n8n.basicAuthUser}:${n8n.basicAuthPass}`).toString('base64');
         headers['Authorization'] = `Basic ${auth}`;
       }
-      const response = await axios.post(endpoint, payload, { headers });
+      const client = createSafeAxios();
+      const response = await client.post(endpoint, payload, { headers });
       const message = response?.data?.output || response?.data?.answer;
 
       // Use base class method instead of custom implementation

@@ -3,7 +3,7 @@ import { WAMonitoringService } from '@api/services/monitor.service';
 import { Integration } from '@api/types/wa.types';
 import { ConfigService, HttpServer } from '@config/env.config';
 import { Evoai, EvoaiSetting, IntegrationSession } from '@prisma/client';
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 import { downloadMediaMessage } from 'baileys';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -147,7 +147,8 @@ export class EvoaiService extends BaseChatbotService<Evoai, EvoaiSetting> {
         await instance.client.sendPresenceUpdate('composing', remoteJid);
       }
 
-      const response = await axios.post(endpoint, payload, {
+      const client = createSafeAxios();
+      const response = await client.post(endpoint, payload, {
         headers: {
           'x-api-key': evoai.apiKey,
           'Content-Type': 'application/json',

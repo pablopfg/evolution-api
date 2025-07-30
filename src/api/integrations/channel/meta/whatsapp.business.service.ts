@@ -24,7 +24,7 @@ import { Chatwoot, ConfigService, Database, Openai, S3, WaBusiness } from '@conf
 import { BadRequestException, InternalServerErrorException } from '@exceptions';
 import { createJid } from '@utils/createJid';
 import { status } from '@utils/renderStatus';
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 import { arrayUnique, isURL } from 'class-validator';
 import EventEmitter2 from 'eventemitter2';
 import FormData from 'form-data';
@@ -80,7 +80,7 @@ export class BusinessStartupService extends ChannelStartupService {
       const version = this.configService.get<WaBusiness>('WA_BUSINESS').VERSION;
       urlServer = `${urlServer}/${version}/${this.number}/${params}`;
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` };
-      const result = await axios.post(urlServer, message, { headers });
+      const result = await createSafeAxios().post(urlServer, message, { headers });
       return result.data;
     } catch (e) {
       return e.response?.data?.error;
@@ -148,10 +148,10 @@ export class BusinessStartupService extends ChannelStartupService {
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` };
 
       // Primeiro, obtenha a URL do arquivo
-      let result = await axios.get(urlServer, { headers });
+      let result = await createSafeAxios().get(urlServer, { headers });
 
       // Depois, baixe o arquivo usando a URL retornada
-      result = await axios.get(result.data.url, {
+      result = await createSafeAxios().get(result.data.url, {
         headers: { Authorization: `Bearer ${this.token}` }, // Use apenas o token de autorização para download
         responseType: 'arraybuffer',
       });
@@ -440,9 +440,9 @@ export class BusinessStartupService extends ChannelStartupService {
                 const version = this.configService.get<WaBusiness>('WA_BUSINESS').VERSION;
                 urlServer = `${urlServer}/${version}/${id}`;
                 const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` };
-                const result = await axios.get(urlServer, { headers });
+                const result = await createSafeAxios().get(urlServer, { headers });
 
-                const buffer = await axios.get(result.data.url, {
+                const buffer = await createSafeAxios().get(result.data.url, {
                   headers: { Authorization: `Bearer ${this.token}` }, // Use apenas o token de autorização para download
                   responseType: 'arraybuffer',
                 });
@@ -791,7 +791,7 @@ export class BusinessStartupService extends ChannelStartupService {
             });
 
             if (findMessage.webhookUrl) {
-              await axios.post(findMessage.webhookUrl, message);
+              await createSafeAxios().post(findMessage.webhookUrl, message);
             }
           }
         }
@@ -1177,7 +1177,7 @@ export class BusinessStartupService extends ChannelStartupService {
 
       if (isFile === false) {
         if (isURL(mediaMessage.media)) {
-          const response = await axios.get(mediaMessage.media, { responseType: 'arraybuffer' });
+          const response = await createSafeAxios().get(mediaMessage.media, { responseType: 'arraybuffer' });
           const buffer = Buffer.from(response.data, 'base64');
           formData.append('file', buffer, {
             filename: mediaMessage.fileName || 'media',
@@ -1209,7 +1209,7 @@ export class BusinessStartupService extends ChannelStartupService {
         this.configService.get<WaBusiness>('WA_BUSINESS').VERSION
       }/${this.number}/media`;
 
-      const res = await axios.post(url, formData, { headers });
+      const res = await createSafeAxios().post(url, formData, { headers });
       return res.data.id;
     } catch (error) {
       this.logger.error(error.response.data);
@@ -1308,7 +1308,7 @@ export class BusinessStartupService extends ChannelStartupService {
 
       formData.append('format', 'mp3');
 
-      const response = await axios.post(process.env.API_AUDIO_CONVERTER, formData, {
+      const response = await createSafeAxios().post(process.env.API_AUDIO_CONVERTER, formData, {
         headers: {
           ...formData.getHeaders(),
           apikey: process.env.API_AUDIO_CONVERTER_KEY,

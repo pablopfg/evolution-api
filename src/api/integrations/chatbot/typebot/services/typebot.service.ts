@@ -3,8 +3,8 @@ import { WAMonitoringService } from '@api/services/monitor.service';
 import { Auth, ConfigService, HttpServer, Typebot } from '@config/env.config';
 import { Instance, IntegrationSession, Message, Typebot as TypebotModel } from '@prisma/client';
 import { getConversationMessage } from '@utils/getConversationMessage';
+import { createSafeAxios } from '@utils/safeAxios';
 import { sendTelemetry } from '@utils/sendTelemetry';
-import axios from 'axios';
 
 import { BaseChatbotService } from '../../base-chatbot.service';
 import { OpenaiService } from '../../openai/services/openai.service';
@@ -121,7 +121,7 @@ export class TypebotService extends BaseChatbotService<TypebotModel, any> {
           },
         };
       }
-      const request = await axios.post(url, reqData);
+      const request = await createSafeAxios().post(url, reqData);
 
       let session = null;
       if (request?.data?.sessionId) {
@@ -676,7 +676,7 @@ export class TypebotService extends BaseChatbotService<TypebotModel, any> {
               };
             }
 
-            const request = await axios.post(urlTypebot, reqData);
+            const request = await createSafeAxios().post(urlTypebot, reqData);
 
             await this.sendWAMessage(
               instance,
@@ -826,7 +826,7 @@ export class TypebotService extends BaseChatbotService<TypebotModel, any> {
               sessionId: data?.sessionId,
             };
           }
-          request = await axios.post(urlTypebot, reqData);
+          request = await createSafeAxios().post(urlTypebot, reqData);
 
           await this.sendWAMessage(
             instance,
@@ -931,7 +931,7 @@ export class TypebotService extends BaseChatbotService<TypebotModel, any> {
       }
     }
 
-    const request = await axios.post(urlTypebot, reqData);
+    const request = await createSafeAxios().post(urlTypebot, reqData);
 
     await this.sendWAMessage(
       instance,

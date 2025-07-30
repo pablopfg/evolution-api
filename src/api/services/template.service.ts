@@ -3,7 +3,7 @@ import { TemplateDto } from '@api/dto/template.dto';
 import { PrismaRepository } from '@api/repository/repository.service';
 import { ConfigService, WaBusiness } from '@config/env.config';
 import { Logger } from '@config/logger.config';
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 
 import { WAMonitoringService } from './monitor.service';
 
@@ -87,10 +87,10 @@ export class TemplateService {
       urlServer = `${urlServer}/${version}/${this.businessId}/message_templates`;
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${this.token}` };
       if (method === 'GET') {
-        const result = await axios.get(urlServer, { headers });
+        const result = await createSafeAxios().get(urlServer, { headers });
         return result.data;
       } else if (method === 'POST') {
-        const result = await axios.post(urlServer, data, { headers });
+        const result = await createSafeAxios().post(urlServer, data, { headers });
         return result.data;
       }
     } catch (e) {

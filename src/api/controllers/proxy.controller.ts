@@ -5,7 +5,7 @@ import { ProxyService } from '@api/services/proxy.service';
 import { Logger } from '@config/logger.config';
 import { BadRequestException, NotFoundException } from '@exceptions';
 import { makeProxyAgent } from '@utils/makeProxyAgent';
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 
 const logger = new Logger('ProxyController');
 
@@ -48,8 +48,9 @@ export class ProxyController {
 
   public async testProxy(proxy: ProxyDto) {
     try {
-      const serverIp = await axios.get('https://icanhazip.com/');
-      const response = await axios.get('https://icanhazip.com/', {
+      const client = createSafeAxios();
+      const serverIp = await client.get('https://icanhazip.com/');
+      const response = await client.get('https://icanhazip.com/', {
         httpsAgent: makeProxyAgent(proxy),
       });
 

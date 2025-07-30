@@ -8,7 +8,7 @@ import { configService, Typebot } from '@config/env.config';
 import { Logger } from '@config/logger.config';
 import { BadRequestException } from '@exceptions';
 import { IntegrationSession, Typebot as TypebotModel } from '@prisma/client';
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 
 import { BaseChatbotController } from '../../base-chatbot.controller';
 
@@ -270,7 +270,8 @@ export class TypebotController extends BaseChatbotController<TypebotModel, Typeb
             },
           };
         }
-        const request = await axios.post(url, reqData);
+        const client = createSafeAxios();
+        const request = await client.post(url, reqData);
 
         await this.typebotService.sendWAMessage(
           instanceData,

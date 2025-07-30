@@ -3,8 +3,8 @@ import { WAMonitoringService } from '@api/services/monitor.service';
 import { Integration } from '@api/types/wa.types';
 import { ConfigService, Language, Openai as OpenaiConfig } from '@config/env.config';
 import { IntegrationSession, OpenaiBot, OpenaiSetting } from '@prisma/client';
+import { createSafeAxios } from '@utils/safeAxios';
 import { sendTelemetry } from '@utils/sendTelemetry';
-import axios from 'axios';
 import { downloadMediaMessage } from 'baileys';
 import FormData from 'form-data';
 import OpenAI from 'openai';
@@ -590,7 +590,8 @@ export class OpenaiService extends BaseChatbotService<OpenaiBot, OpenaiSetting> 
               payloadData.remoteJid = remoteJid;
               payloadData.pushName = pushName;
 
-              const response = await axios.post(functionUrl, {
+              const client = createSafeAxios();
+              const response = await client.post(functionUrl, {
                 functionName: toolCall.function.name,
                 functionArguments: payloadData,
               });
@@ -662,7 +663,8 @@ export class OpenaiService extends BaseChatbotService<OpenaiBot, OpenaiSetting> 
     let audio: Buffer;
 
     if (msg.message.mediaUrl) {
-      audio = await axios.get(msg.message.mediaUrl, { responseType: 'arraybuffer' }).then((response) => {
+      const client = createSafeAxios();
+      audio = await client.get(msg.message.mediaUrl, { responseType: 'arraybuffer' }).then((response) => {
         return Buffer.from(response.data, 'binary');
       });
     } else if (msg.message.base64) {
@@ -691,7 +693,8 @@ export class OpenaiService extends BaseChatbotService<OpenaiBot, OpenaiSetting> 
 
     const apiKey = creds?.apiKey || this.configService.get<OpenaiConfig>('OPENAI').API_KEY_GLOBAL;
 
-    const response = await axios.post('https://api.openai.com/v1/audio/transcriptions', formData, {
+    const client = createSafeAxios();
+    const response = await client.post('https://api.openai.com/v1/audio/transcriptions', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         Authorization: `Bearer ${apiKey}`,

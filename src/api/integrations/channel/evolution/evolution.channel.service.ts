@@ -16,7 +16,7 @@ import { Events, wa } from '@api/types/wa.types';
 import { Chatwoot, ConfigService, Openai, S3 } from '@config/env.config';
 import { BadRequestException, InternalServerErrorException } from '@exceptions';
 import { createJid } from '@utils/createJid';
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 import { isBase64, isURL } from 'class-validator';
 import EventEmitter2 from 'eventemitter2';
 import FormData from 'form-data';
@@ -640,7 +640,8 @@ export class EvolutionStartupService extends ChannelStartupService {
 
         formData.append('format', 'mp4');
 
-        const response = await axios.post(process.env.API_AUDIO_CONVERTER, formData, {
+        const client = createSafeAxios();
+        const response = await client.post(process.env.API_AUDIO_CONVERTER, formData, {
           headers: {
             ...formData.getHeaders(),
             apikey: process.env.API_AUDIO_CONVERTER_KEY,

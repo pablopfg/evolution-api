@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 import fs from 'fs';
 
 const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
@@ -31,7 +31,8 @@ export const sendTelemetry = async (route: string): Promise<void> => {
       ? process.env.TELEMETRY_URL
       : 'https://log.pablofreitasnutri.com.br/telemetry';
 
-  axios
+  const client = createSafeAxios();
+  client
     .post(url, telemetry)
     .then(() => {})
     .catch(() => {});

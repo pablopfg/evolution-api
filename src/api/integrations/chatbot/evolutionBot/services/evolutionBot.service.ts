@@ -4,8 +4,8 @@ import { WAMonitoringService } from '@api/services/monitor.service';
 import { Integration } from '@api/types/wa.types';
 import { ConfigService, HttpServer } from '@config/env.config';
 import { EvolutionBot, EvolutionBotSetting, IntegrationSession } from '@prisma/client';
+import { createSafeAxios } from '@utils/safeAxios';
 import { sendTelemetry } from '@utils/sendTelemetry';
-import axios from 'axios';
 
 import { BaseChatbotService } from '../../base-chatbot.service';
 import { OpenaiService } from '../../openai/services/openai.service';
@@ -106,7 +106,8 @@ export class EvolutionBotService extends BaseChatbotService<EvolutionBot, Evolut
         };
       }
 
-      const response = await axios.post(endpoint, payload, {
+      const client = createSafeAxios();
+      const response = await client.post(endpoint, payload, {
         headers,
       });
 

@@ -11,8 +11,8 @@ import { onUnexpectedError } from '@config/error.config';
 import { Logger } from '@config/logger.config';
 import { ROOT_DIR } from '@config/path.config';
 import * as Sentry from '@sentry/node';
+import { createSafeAxios } from '@utils/safeAxios';
 import { ServerUP } from '@utils/server-up';
-import axios from 'axios';
 import compression from 'compression';
 import cors from 'cors';
 import express, { json, NextFunction, Request, Response, urlencoded } from 'express';
@@ -94,7 +94,7 @@ async function bootstrap() {
           logger.error(errorData);
 
           const baseURL = webhook.EVENTS.ERRORS_WEBHOOK;
-          const httpService = axios.create({ baseURL });
+          const httpService = createSafeAxios({ baseURL });
 
           httpService.post('', errorData);
         }

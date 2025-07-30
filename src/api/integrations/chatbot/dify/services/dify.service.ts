@@ -3,7 +3,7 @@ import { WAMonitoringService } from '@api/services/monitor.service';
 import { Integration } from '@api/types/wa.types';
 import { ConfigService, HttpServer } from '@config/env.config';
 import { Dify, DifySetting, IntegrationSession } from '@prisma/client';
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 
 import { BaseChatbotService } from '../../base-chatbot.service';
 import { OpenaiService } from '../../openai/services/openai.service';
@@ -94,7 +94,7 @@ export class DifyService extends BaseChatbotService<Dify, DifySetting> {
           await instance.client.sendPresenceUpdate('composing', remoteJid);
         }
 
-        const response = await axios.post(endpoint, payload, {
+        const response = await createSafeAxios().post(endpoint, payload, {
           headers: {
             Authorization: `Bearer ${dify.apiKey}`,
           },
@@ -156,7 +156,7 @@ export class DifyService extends BaseChatbotService<Dify, DifySetting> {
           await instance.client.sendPresenceUpdate('composing', remoteJid);
         }
 
-        const response = await axios.post(endpoint, payload, {
+        const response = await createSafeAxios().post(endpoint, payload, {
           headers: {
             Authorization: `Bearer ${dify.apiKey}`,
           },
@@ -218,7 +218,7 @@ export class DifyService extends BaseChatbotService<Dify, DifySetting> {
           await instance.client.sendPresenceUpdate('composing', remoteJid);
         }
 
-        const response = await axios.post(endpoint, payload, {
+        const response = await createSafeAxios().post(endpoint, payload, {
           headers: {
             Authorization: `Bearer ${dify.apiKey}`,
           },

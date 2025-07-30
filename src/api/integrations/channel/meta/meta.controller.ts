@@ -1,7 +1,7 @@
 import { PrismaRepository } from '@api/repository/repository.service';
 import { WAMonitoringService } from '@api/services/monitor.service';
 import { Logger } from '@config/logger.config';
-import axios from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
 
 import { ChannelController, ChannelControllerInterface } from '../channel.controller';
 
@@ -28,7 +28,8 @@ export class MetaController extends ChannelController implements ChannelControll
 
         const { webhookUrl } = template;
 
-        await axios.post(webhookUrl, data.entry[0].changes[0].value, {
+        const client = createSafeAxios();
+        await client.post(webhookUrl, data.entry[0].changes[0].value, {
           headers: {
             'Content-Type': 'application/json',
           },

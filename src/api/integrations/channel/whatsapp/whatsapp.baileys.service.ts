@@ -84,10 +84,10 @@ import { fetchLatestWaWebVersion } from '@utils/fetchLatestWaWebVersion';
 import { makeProxyAgent } from '@utils/makeProxyAgent';
 import { getOnWhatsappCache, saveOnWhatsappCache } from '@utils/onWhatsappCache';
 import { status } from '@utils/renderStatus';
+import { createSafeAxios } from '@utils/safeAxios';
 import useMultiFileAuthStatePrisma from '@utils/use-multi-file-auth-state-prisma';
 import { AuthStateProvider } from '@utils/use-multi-file-auth-state-provider-files';
 import { useMultiFileAuthStateRedisDb } from '@utils/use-multi-file-auth-state-redis-db';
-import axios from 'axios';
 import makeWASocket, {
   AnyMessageContent,
   BufferedEventData,
@@ -573,7 +573,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
       if (this.localProxy?.host?.includes('proxyscrape')) {
         try {
-          const response = await axios.get(this.localProxy?.host);
+          const response = await createSafeAxios().get(this.localProxy?.host);
           const text = response.data;
           const proxyUrls = text.split('\r\n');
           const rand = Math.floor(Math.random() * Math.floor(proxyUrls.length));
@@ -2491,7 +2491,7 @@ export class BaileysStartupService extends ChannelStartupService {
             };
           }
 
-          const response = await axios.get(mediaMessage.media, config);
+          const response = await createSafeAxios().get(mediaMessage.media, config);
 
           mimetype = response.headers['content-type'];
         }
@@ -2578,7 +2578,7 @@ export class BaileysStartupService extends ChannelStartupService {
           };
         }
 
-        const response = await axios.get(url, config);
+        const response = await createSafeAxios().get(url, config);
         imageBuffer = Buffer.from(response.data, 'binary');
       }
 
@@ -2693,7 +2693,7 @@ export class BaileysStartupService extends ChannelStartupService {
     let inputStream: PassThrough;
 
     if (isURL(audio)) {
-      const response = await axios.get(audio, { responseType: 'stream' });
+      const response = await createSafeAxios().get(audio, { responseType: 'stream' });
       inputStream = response.data;
     } else {
       const audioBuffer = Buffer.from(audio, 'base64');
@@ -2767,7 +2767,7 @@ export class BaileysStartupService extends ChannelStartupService {
         formData.append('base64', audio);
       }
 
-      const { data } = await axios.post(process.env.API_AUDIO_CONVERTER, formData, {
+      const { data } = await createSafeAxios().post(process.env.API_AUDIO_CONVERTER, formData, {
         headers: { ...formData.getHeaders(), apikey: process.env.API_AUDIO_CONVERTER_KEY },
       });
 
@@ -2788,7 +2788,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
         const config: any = { responseType: 'stream' };
 
-        const response = await axios.get(url, config);
+        const response = await createSafeAxios().get(url, config);
         inputAudioStream = response.data.pipe(new PassThrough());
       } else {
         const audioBuffer = Buffer.from(audio, 'base64');
@@ -3729,7 +3729,7 @@ export class BaileysStartupService extends ChannelStartupService {
           };
         }
 
-        pic = (await axios.get(url, config)).data;
+        pic = (await createSafeAxios().get(url, config)).data;
       } else if (isBase64(picture)) {
         pic = Buffer.from(picture, 'base64');
       } else {
@@ -4013,7 +4013,7 @@ export class BaileysStartupService extends ChannelStartupService {
           };
         }
 
-        pic = (await axios.get(url, config)).data;
+        pic = (await createSafeAxios().get(url, config)).data;
       } else if (isBase64(picture.image)) {
         pic = Buffer.from(picture.image, 'base64');
       } else {

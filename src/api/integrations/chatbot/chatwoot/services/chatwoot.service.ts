@@ -21,8 +21,8 @@ import ChatwootClient, {
 import { request as chatwootRequest } from '@figuro/chatwoot-sdk/dist/core/request';
 import { Chatwoot as ChatwootModel, Contact as ContactModel, Message as MessageModel } from '@prisma/client';
 import i18next from '@utils/i18n';
+import { createSafeAxios } from '@utils/safeAxios';
 import { sendTelemetry } from '@utils/sendTelemetry';
-import axios from 'axios';
 import { proto } from 'baileys';
 import dayjs from 'dayjs';
 import FormData from 'form-data';
@@ -1046,7 +1046,8 @@ export class ChatwootService {
     };
 
     try {
-      const { data } = await axios.request(config);
+      const client = createSafeAxios();
+      const { data } = await client.request(config);
 
       return data;
     } catch (error) {
@@ -1119,7 +1120,8 @@ export class ChatwootService {
     };
 
     try {
-      const { data } = await axios.request(config);
+      const client = createSafeAxios();
+      const { data } = await client.request(config);
 
       return data;
     } catch (error) {
@@ -1137,7 +1139,8 @@ export class ChatwootService {
         const parts = media.split('/');
         fileName = decodeURIComponent(parts[parts.length - 1]);
 
-        const response = await axios.get(media, {
+        const client = createSafeAxios();
+        const response = await client.get(media, {
           responseType: 'arraybuffer',
         });
         mimeType = response.headers['content-type'];
@@ -2131,7 +2134,8 @@ export class ChatwootService {
 
         const isAdsMessage = (adsMessage && adsMessage.title) || adsMessage.body || adsMessage.thumbnailUrl;
         if (isAdsMessage) {
-          const imgBuffer = await axios.get(adsMessage.thumbnailUrl, { responseType: 'arraybuffer' });
+          const client = createSafeAxios();
+          const imgBuffer = await client.get(adsMessage.thumbnailUrl, { responseType: 'arraybuffer' });
 
           const extension = mimeTypes.extension(imgBuffer.headers['content-type']);
           const mimeType = extension && mimeTypes.lookup(extension);

@@ -1,9 +1,11 @@
-import axios, { AxiosRequestConfig } from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
+import { AxiosRequestConfig } from 'axios';
 import { fetchLatestBaileysVersion, WAVersion } from 'baileys';
 
 export const fetchLatestWaWebVersion = async (options: AxiosRequestConfig<{}>) => {
   try {
-    const { data } = await axios.get('https://web.whatsapp.com/sw.js', {
+    const client = createSafeAxios();
+    const { data } = await client.get('https://web.whatsapp.com/sw.js', {
       ...options,
       responseType: 'json',
     });

@@ -5,7 +5,8 @@ import { wa } from '@api/types/wa.types';
 import { configService, Log, Webhook } from '@config/env.config';
 import { Logger } from '@config/logger.config';
 import { BadRequestException } from '@exceptions';
-import axios, { AxiosInstance } from 'axios';
+import { createSafeAxios } from '@utils/safeAxios';
+import { AxiosInstance } from 'axios';
 import * as jwt from 'jsonwebtoken';
 
 import { EmitData, EventController, EventControllerInterface } from '../event.controller';
@@ -122,7 +123,7 @@ export class WebhookController extends EventController implements EventControlle
 
         try {
           if (instance?.enabled && regex.test(instance.url)) {
-            const httpService = axios.create({
+            const httpService = createSafeAxios({
               baseURL,
               headers: webhookHeaders as Record<string, string> | undefined,
               timeout: webhookConfig.REQUEST?.TIMEOUT_MS ?? 30000,
@@ -167,7 +168,7 @@ export class WebhookController extends EventController implements EventControlle
 
         try {
           if (regex.test(globalURL)) {
-            const httpService = axios.create({
+            const httpService = createSafeAxios({
               baseURL: globalURL,
               timeout: webhookConfig.REQUEST?.TIMEOUT_MS ?? 30000,
             });

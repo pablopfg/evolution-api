@@ -61,7 +61,7 @@ router.get('/assets/*', staticLimiter, (req, res) => {
   }
 
   if (fs.existsSync(filePath)) {
-    res.set('Content-Type', mimeTypes.lookup(filePath) || 'text/plain');
+    res.set('Content-Type', mimeTypes.lookup(filePath) || 'text/css');
     res.send(fs.readFileSync(filePath));
   } else {
     res.status(404).send('File not found');

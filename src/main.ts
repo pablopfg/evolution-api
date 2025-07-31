@@ -16,7 +16,6 @@ import axios from 'axios';
 import compression from 'compression';
 import cors from 'cors';
 import express, { json, NextFunction, Request, Response, urlencoded } from 'express';
-import helmet from 'helmet';
 import { join } from 'path';
 
 function initWA() {
@@ -26,8 +25,6 @@ function initWA() {
 async function bootstrap() {
   const logger = new Logger('SERVER');
   const app = express();
-  app.use(helmet());
-  app.disable('x-powered-by');
 
   let providerFiles: ProviderFiles = null;
   if (configService.get<ProviderSession>('PROVIDER').ENABLED) {

@@ -82,7 +82,7 @@
     "jsonwebtoken": "^9.0.2",
     "link-preview-js": "^3.1.0",
     "long": "^5.3.2",
-    "mediainfo.js": "^0.3.4",
+    "mediainfo.js": "^0.3.6",
     "mime": "^4.0.7",
     "mime-types": "^3.0.1",
     "minio": "^8.0.3",

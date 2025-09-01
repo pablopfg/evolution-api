@@ -18,7 +18,7 @@ import ChatwootClient, {
   generic_id,
   inbox,
 } from '@figuro/chatwoot-sdk';
-import { request as chatwootRequest } from '@figuro/chatwoot-sdk/dist/core/request.js';
+import { request as chatwootRequest } from '@figuro/chatwoot-sdk/dist/core/request';
 import { Chatwoot as ChatwootModel, Contact as ContactModel, Message as MessageModel } from '@prisma/client';
 import i18next from '@utils/i18n';
 import { sendTelemetry } from '@utils/sendTelemetry';
@@ -2147,8 +2147,8 @@ export class ChatwootService {
 
           const img = await Jimp.read(fileData);
           await img.cover({
-            w: 160,
-            h: 90,
+            w: 320,
+            h: 180,
           });
           const processedBuffer = await img.getBuffer(JimpMime.png);
 

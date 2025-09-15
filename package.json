@@ -85,7 +85,7 @@
     "mediainfo.js": "^0.3.6",
     "mime": "^4.0.7",
     "mime-types": "^3.0.1",
-    "minio": "^8.0.3",
+    "minio": "^8.0.6",
     "multer": "^2.0.2",
     "nats": "^2.29.1",
     "node-cache": "^5.1.2",

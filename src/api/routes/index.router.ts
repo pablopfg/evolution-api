@@ -9,6 +9,7 @@ import { waMonitor } from '@api/server.module';
 import { configService } from '@config/env.config';
 import { fetchLatestWaWebVersion } from '@utils/fetchLatestWaWebVersion';
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import mimeTypes from 'mime-types';
 import path from 'path';
@@ -104,7 +105,12 @@ if (process.env.PROMETHEUS_METRICS === 'true') {
 
 if (!serverConfig.DISABLE_MANAGER) router.use('/manager', new ViewsRouter().router);
 
-router.get('/assets/*', (req, res) => {
+const staticLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+});
+
+router.get('/assets/*', staticLimiter, (req, res) => {
   const fileName = req.params[0];
 
   // Security: Reject paths containing traversal patterns
@@ -142,7 +148,6 @@ router
       version: packageJson.version,
       clientName: process.env.DATABASE_CONNECTION_CLIENT_NAME,
       manager: !serverConfig.DISABLE_MANAGER ? `${req.protocol}://${req.get('host')}/manager` : undefined,
-      documentation: `https://doc.evolution-api.com`,
       whatsappWebVersion: (await fetchLatestWaWebVersion({})).version.join('.'),
     });
   })

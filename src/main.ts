@@ -25,6 +25,7 @@ function initWA() {
 async function bootstrap() {
   const logger = new Logger('SERVER');
   const app = express();
+  app.disable('x-powered-by');
 
   let providerFiles: ProviderFiles = null;
   if (configService.get<ProviderSession>('PROVIDER').ENABLED) {

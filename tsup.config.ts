@@ -9,9 +9,9 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   minify: true,
-  format: ['cjs', 'esm'],
+  format: 'esm',
   onSuccess: async () => {
-    cpSync('src/utils/translations', 'dist/translations', { recursive: true });
+    cpSync('src/utils/translations', 'dist/utils/translations', { recursive: true });
   },
   loader: {
     '.json': 'file',

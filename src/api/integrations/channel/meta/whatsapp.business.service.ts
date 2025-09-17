@@ -458,7 +458,7 @@ export class BusinessStartupService extends ChannelStartupService {
                 } else {
                   mediaType = 'video';
                 }
-
+                
                 if (mediaType == 'video' && !this.configService.get<S3>('S3').SAVE_VIDEO) {
                   this.logger?.info?.('Video upload attempted but is disabled by configuration.');
                   return {
@@ -467,7 +467,7 @@ export class BusinessStartupService extends ChannelStartupService {
                       'Video upload is currently disabled. Please contact support if you need this feature enabled.',
                   };
                 }
-                
+
                 const mimetype = result.data?.mime_type || result.headers['content-type'];
 
                 const contentDisposition = result.headers['content-disposition'];

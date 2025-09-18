@@ -1,4 +1,4 @@
-FROM node:24.4.1-alpine AS builder
+FROM node:24-alpine AS builder
 
 RUN apk update && \
     apk add --no-cache git ffmpeg wget curl bash openssl
@@ -20,7 +20,7 @@ COPY ./public ./public
 COPY ./prisma ./prisma
 COPY ./manager ./manager
 COPY ./.env.example ./.env
-COPY ./runWithProvider.cjs ./
+COPY ./runWithProvider.js ./
 
 COPY ./Docker ./Docker
 
@@ -30,7 +30,7 @@ RUN ./Docker/scripts/generate_database.sh
 
 RUN npm run build
 
-FROM node:24.4.1-alpine AS final
+FROM node:24-alpine AS final
 
 RUN apk update && \
     apk add tzdata ffmpeg bash openssl
@@ -50,7 +50,7 @@ COPY --from=builder /evolution/manager ./manager
 COPY --from=builder /evolution/public ./public
 COPY --from=builder /evolution/.env ./.env
 COPY --from=builder /evolution/Docker ./Docker
-COPY --from=builder /evolution/runWithProvider.cjs ./runWithProvider.cjs
+COPY --from=builder /evolution/runWithProvider.js ./runWithProvider.js
 COPY --from=builder /evolution/tsup.config.ts ./tsup.config.ts
 
 ENV DOCKER_ENV=true

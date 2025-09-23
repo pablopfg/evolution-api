@@ -1,4 +1,4 @@
-# 2.3.4 (develop)
+# 2.3.4 (2025-09-23)
 
 ### Features
 
@@ -19,6 +19,12 @@
   - CI/CD workflows for code quality, security audits, and automated builds
   - Multi-language support (English, Portuguese, Spanish, French)
   - Modern React + TypeScript + Vite frontend with Tailwind CSS
+
+* **EvolutionBot Enhancements**: Improved EvolutionBot functionality and message handling
+  - Implemented splitMessages functionality for better message segmentation
+  - Added linkPreview support for enhanced message presentation
+  - Centralized split logic across chatbot services for consistency
+  - Enhanced message formatting and delivery capabilities
 
 ### Fixed
 
@@ -64,7 +70,6 @@
   - `KAFKA_CONSUMER_GROUP_ID`, `KAFKA_TOPIC_PREFIX`
   - `KAFKA_SASL_*` and `KAFKA_SSL_*` for authentication
   - `KAFKA_EVENTS_*` for event type configuration
-
 
 # 2.3.3 (2025-09-18)
 

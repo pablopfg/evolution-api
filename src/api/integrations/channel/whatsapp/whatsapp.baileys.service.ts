@@ -4566,7 +4566,7 @@ export class BaileysStartupService extends ChannelStartupService {
   }
 
   public async baileysAssertSessions(jids: string[]) {
-    const response = await this.client.assertSessions(jids);
+    const response = await this.client.assertSessions(jids, force);
 
     return response;
   }

@@ -64,6 +64,23 @@ export class Logger {
     this.context = context;
   }
 
+  // Redacts sensitive fields recursively from objects
+  private redactSensitiveData(value: any): any {
+    const SENSITIVE_KEYS = ['apiKey', 'token', 'password', 'secret', 'accessToken', 'authorization'];
+    if (Array.isArray(value)) {
+      return value.map((item) => this.redactSensitiveData(item));
+    }
+    else if (value !== null && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([k, v]) => [
+          SENSITIVE_KEYS.includes(k) ? k : k,
+          SENSITIVE_KEYS.includes(k) ? '[REDACTED]' : this.redactSensitiveData(v)
+        ])
+      );
+    }
+    return value;
+  }
+
   private instance = null;
 
   public setContext(value: string) {
@@ -80,6 +97,9 @@ export class Logger {
     this.configService.get<Log>('LOG').LEVEL.forEach((level) => types.push(Type[level]));
 
     const typeValue = typeof value;
+    const safeValue = typeValue === 'object' && value !== null
+      ? this.redactSensitiveData(value)
+      : value;
     if (types.includes(type)) {
       if (configService.get<Log>('LOG').COLOR) {
         console.log(
@@ -104,10 +124,10 @@ export class Logger {
           Color[type] + Command.BRIGHT,
           `[${typeValue}]` + Command.RESET,
           Color[type],
-          typeValue !== 'object' ? value : '',
+          typeValue !== 'object' ? safeValue : '',
           Command.RESET,
         );
-        typeValue === 'object' ? console.log(/*Level.DARK,*/ value, '\n') : '';
+        typeValue === 'object' ? console.log(/*Level.DARK,*/ safeValue, '\n') : '';
       } else {
         console.log(
           '[Evolution API]',
@@ -118,7 +138,7 @@ export class Logger {
           `${type} `,
           `[${this.context}]`,
           `[${typeValue}]`,
-          value,
+          safeValue,
         );
       }
     }

@@ -2,6 +2,7 @@ import { RouterBroker } from '@api/abstract/abstract.router';
 import { metaController } from '@api/server.module';
 import { ConfigService, WaBusiness } from '@config/env.config';
 import { Router } from 'express';
+import escape from 'escape-html';
 
 export class MetaRouter extends RouterBroker {
   constructor(readonly configService: ConfigService) {
@@ -10,7 +11,7 @@ export class MetaRouter extends RouterBroker {
       .get(this.routerPath('webhook/meta', false), async (req, res) => {
         const token = req.query['hub.verify_token'];
         if (token === this.configService.get<WaBusiness>('WA_BUSINESS').TOKEN_WEBHOOK) {
-          res.type('text/plain').send(String(req.query['hub.challenge'] || ''));
+          res.type('text/plain').send(escape(String(req.query['hub.challenge'] || '')));
         } else {
           res.type('text/plain').send('Error, wrong validation token');
         }

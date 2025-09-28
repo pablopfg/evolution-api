@@ -122,7 +122,8 @@
     "socks-proxy-agent": "^8.0.5",
     "swagger-ui-express": "^5.0.1",
     "tsup": "^8.3.5",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "escape-html": "^1.0.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.0.0",

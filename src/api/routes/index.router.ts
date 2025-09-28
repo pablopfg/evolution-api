@@ -12,6 +12,7 @@ import { NextFunction, Request, Response, Router } from 'express';
 import fs from 'fs';
 import mimeTypes from 'mime-types';
 import path from 'path';
+import rateLimit from 'express-rate-limit';
 
 import { BusinessRouter } from './business.router';
 import { CallRouter } from './call.router';
@@ -157,7 +158,14 @@ if (metricsConfig.ENABLED) {
 
 if (!serverConfig.DISABLE_MANAGER) router.use('/manager', new ViewsRouter().router);
 
-router.get('/assets/*', (req, res) => {
+const assetsRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.get('/assets/*', assetsRateLimiter, (req, res) => {
   const fileName = req.params[0];
 
   // Security: Reject paths containing traversal patterns

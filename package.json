@@ -151,7 +151,7 @@
     "prettier": "^3.4.2",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.20.6",
-    "typescript": "^5.7.2"
+    "typescript": "^5.9.3"
   },
   "overrides": {
     "axios": "^1.12.2",

@@ -254,6 +254,10 @@ export class BaileysStartupService extends ChannelStartupService {
   private endSession = false;
   private logBaileys = this.configService.get<Log>('LOG').BAILEYS;
 
+  // Cache TTL constants (in seconds)
+  private readonly MESSAGE_CACHE_TTL_SECONDS = 5 * 60; // 5 minutes - avoid duplicate message processing
+  private readonly UPDATE_CACHE_TTL_SECONDS = 30 * 60; // 30 minutes - avoid duplicate status updates
+
   public stateConnection: wa.StateConnection = { state: 'close' };
 
   public phoneNumber: string;
@@ -500,8 +504,8 @@ export class BaileysStartupService extends ChannelStartupService {
     try {
       // Use raw SQL to avoid JSON path issues
       const webMessageInfo = (await this.prismaRepository.$queryRaw`
-        SELECT * FROM "Message" 
-        WHERE "instanceId" = ${this.instanceId} 
+        SELECT * FROM "Message"
+        WHERE "instanceId" = ${this.instanceId}
         AND "key"->>'id' = ${key.id}
       `) as proto.IWebMessageInfo[];
 
@@ -1065,6 +1069,11 @@ export class BaileysStartupService extends ChannelStartupService {
       settings: any,
     ) => {
       try {
+        // Garantir que localChatwoot está carregado antes de processar mensagens
+        if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && !this.localChatwoot?.enabled) {
+          await this.loadChatwoot();
+        }
+
         for (const received of messages) {
           if (received.key.remoteJid?.includes('@lid') && (received.key as ExtendedMessageKey).senderPn) {
             (received.key as ExtendedMessageKey).previousRemoteJid = received.key.remoteJid;
@@ -1150,7 +1159,7 @@ export class BaileysStartupService extends ChannelStartupService {
             continue;
           }
 
-          await this.baileysCache.set(messageKey, true, 5 * 60);
+          await this.baileysCache.set(messageKey, true, this.MESSAGE_CACHE_TTL_SECONDS);
 
           if (
             (type !== 'notify' && type !== 'append') ||
@@ -1270,7 +1279,7 @@ export class BaileysStartupService extends ChannelStartupService {
                 await this.updateMessagesReadedByTimestamp(remoteJid, timestamp);
               }
 
-              await this.baileysCache.set(messageKey, true, 5 * 60);
+              await this.baileysCache.set(messageKey, true, this.MESSAGE_CACHE_TTL_SECONDS);
             } else {
               this.logger.info(`Update readed messages duplicated ignored [avoid deadlock]: ${messageKey}`);
             }
@@ -1445,12 +1454,17 @@ export class BaileysStartupService extends ChannelStartupService {
 
         const cached = await this.baileysCache.get(updateKey);
 
-        if (cached) {
+        // Não ignorar mensagens deletadas (messageStubType === 1) mesmo que estejam em cache
+        const isDeletedMessage = update.messageStubType === 1;
+
+        if (cached && !isDeletedMessage) {
           this.logger.info(`Message duplicated ignored [avoid deadlock]: ${updateKey}`);
           continue;
         }
 
-        await this.baileysCache.set(updateKey, true, 30 * 60);
+        if (!isDeletedMessage) {
+          await this.baileysCache.set(updateKey, true, this.UPDATE_CACHE_TTL_SECONDS);
+        }
 
         if (status[update.status] === 'READ' && key.fromMe) {
           if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && this.localChatwoot?.enabled) {
@@ -1491,8 +1505,8 @@ export class BaileysStartupService extends ChannelStartupService {
           if (configDatabaseData.HISTORIC || configDatabaseData.NEW_MESSAGE) {
             // Use raw SQL to avoid JSON path issues
             const messages = (await this.prismaRepository.$queryRaw`
-              SELECT * FROM "Message" 
-              WHERE "instanceId" = ${this.instanceId} 
+              SELECT * FROM "Message"
+              WHERE "instanceId" = ${this.instanceId}
               AND "key"->>'id' = ${key.id}
               LIMIT 1
             `) as any[];
@@ -1537,7 +1551,7 @@ export class BaileysStartupService extends ChannelStartupService {
                 if (status[update.status] === status[4]) {
                   this.logger.log(`Update as read in message.update ${remoteJid} - ${timestamp}`);
                   await this.updateMessagesReadedByTimestamp(remoteJid, timestamp);
-                  await this.baileysCache.set(messageKey, true, 5 * 60);
+                  await this.baileysCache.set(messageKey, true, this.MESSAGE_CACHE_TTL_SECONDS);
                 }
 
                 await this.prismaRepository.message.update({
@@ -1554,8 +1568,22 @@ export class BaileysStartupService extends ChannelStartupService {
 
           this.sendDataWebhook(Events.MESSAGES_UPDATE, message);
 
-          if (this.configService.get<Database>('DATABASE').SAVE_DATA.MESSAGE_UPDATE)
-            await this.prismaRepository.messageUpdate.create({ data: message });
+          if (this.configService.get<Database>('DATABASE').SAVE_DATA.MESSAGE_UPDATE) {
+            // Verificar se a mensagem ainda existe antes de criar o update
+            const messageExists = await this.prismaRepository.message.findFirst({
+              where: {
+                instanceId: message.instanceId,
+                key: {
+                  path: ['id'],
+                  equals: message.keyId,
+                },
+              },
+            });
+
+            if (messageExists) {
+              await this.prismaRepository.messageUpdate.create({ data: message });
+            }
+          }
 
           const existingChat = await this.prismaRepository.chat.findFirst({
             where: { instanceId: this.instanceId, remoteJid: message.remoteJid },
@@ -1595,12 +1623,66 @@ export class BaileysStartupService extends ChannelStartupService {
       });
     },
 
-    'group-participants.update': (participantsUpdate: {
+    'group-participants.update': async (participantsUpdate: {
       id: string;
       participants: string[];
       action: ParticipantAction;
     }) => {
-      this.sendDataWebhook(Events.GROUP_PARTICIPANTS_UPDATE, participantsUpdate);
+      // ENHANCEMENT: Adds participantsData field while maintaining backward compatibility
+      // MAINTAINS: participants: string[] (original JID strings)
+      // ADDS: participantsData: { jid: string, phoneNumber: string, name?: string, imgUrl?: string }[]
+      // This enables LID to phoneNumber conversion without breaking existing webhook consumers
+
+      // Helper to normalize participantId as phone number
+      const normalizePhoneNumber = (id: string): string => {
+        // Remove @lid, @s.whatsapp.net suffixes and extract just the number part
+        return id.split('@')[0];
+      };
+
+      try {
+        // Usa o mesmo método que o endpoint /group/participants
+        const groupParticipants = await this.findParticipants({ groupJid: participantsUpdate.id });
+
+        // Validação para garantir que temos dados válidos
+        if (!groupParticipants?.participants || !Array.isArray(groupParticipants.participants)) {
+          throw new Error('Invalid participant data received from findParticipants');
+        }
+
+        // Filtra apenas os participantes que estão no evento
+        const resolvedParticipants = participantsUpdate.participants.map((participantId) => {
+          const participantData = groupParticipants.participants.find((p) => p.id === participantId);
+
+          let phoneNumber: string;
+          if (participantData?.phoneNumber) {
+            phoneNumber = participantData.phoneNumber;
+          } else {
+            phoneNumber = normalizePhoneNumber(participantId);
+          }
+
+          return {
+            jid: participantId,
+            phoneNumber,
+            name: participantData?.name,
+            imgUrl: participantData?.imgUrl,
+          };
+        });
+
+        // Mantém formato original + adiciona dados resolvidos
+        const enhancedParticipantsUpdate = {
+          ...participantsUpdate,
+          participants: participantsUpdate.participants, // Mantém array original de strings
+          // Adiciona dados resolvidos em campo separado
+          participantsData: resolvedParticipants,
+        };
+
+        this.sendDataWebhook(Events.GROUP_PARTICIPANTS_UPDATE, enhancedParticipantsUpdate);
+      } catch (error) {
+        this.logger.error(
+          `Failed to resolve participant data for GROUP_PARTICIPANTS_UPDATE webhook: ${error.message} | Group: ${participantsUpdate.id} | Participants: ${participantsUpdate.participants.length}`,
+        );
+        // Fallback - envia sem conversão
+        this.sendDataWebhook(Events.GROUP_PARTICIPANTS_UPDATE, participantsUpdate);
+      }
 
       this.updateGroupMetadataCache(participantsUpdate.id);
     },
@@ -4465,7 +4547,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
     // Use raw SQL to avoid JSON path issues
     const result = await this.prismaRepository.$executeRaw`
-      UPDATE "Message" 
+      UPDATE "Message"
       SET "status" = ${status[4]}
       WHERE "instanceId" = ${this.instanceId}
       AND "key"->>'remoteJid' = ${remoteJid}
@@ -4490,7 +4572,7 @@ export class BaileysStartupService extends ChannelStartupService {
       this.prismaRepository.chat.findFirst({ where: { remoteJid } }),
       // Use raw SQL to avoid JSON path issues
       this.prismaRepository.$queryRaw`
-        SELECT COUNT(*)::int as count FROM "Message" 
+        SELECT COUNT(*)::int as count FROM "Message"
         WHERE "instanceId" = ${this.instanceId}
         AND "key"->>'remoteJid' = ${remoteJid}
         AND ("key"->>'fromMe')::boolean = false
@@ -4565,7 +4647,9 @@ export class BaileysStartupService extends ChannelStartupService {
     return response;
   }
 
-  public async baileysAssertSessions(jids: string[]) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async baileysAssertSessions(jids: string[], _force?: boolean) {
+    // Note: _force parameter kept for API compatibility but not used in Baileys 7.0.0-rc.5+
     const response = await this.client.assertSessions(jids);
 
     return response;

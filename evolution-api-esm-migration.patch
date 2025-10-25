@@ -1,0 +1,820 @@
+From 5434c81657209d535ca6f9e1bfbd40a02b20bd70 Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:26:59 +0000
+Subject: [PATCH 01/13] build: migrate config files to CommonJS for ESM
+ compatibility
+
+---
+ .eslintrc.cjs         | 39 +++++++++++++++++++++++++++++++++++++++
+ .prettierrc.cjs       | 12 ++++++++++++
+ commitlint.config.cjs | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 85 insertions(+)
+ create mode 100644 .eslintrc.cjs
+ create mode 100644 .prettierrc.cjs
+ create mode 100644 commitlint.config.cjs
+
+diff --git a/.eslintrc.cjs b/.eslintrc.cjs
+new file mode 100644
+index 00000000..8f54a776
+--- /dev/null
++++ b/.eslintrc.cjs
+@@ -0,0 +1,39 @@
++module.exports = {
++  parser: '@typescript-eslint/parser',
++  parserOptions: {
++    project: 'tsconfig.json',
++    tsconfigRootDir: __dirname,
++    sourceType: 'module',
++    warnOnUnsupportedTypeScriptVersion: false,
++    EXPERIMENTAL_useSourceOfProjectReferenceRedirect: true,
++  },
++  plugins: ['@typescript-eslint', 'simple-import-sort', 'import'],
++  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'],
++  globals: {
++    Atomics: 'readonly',
++    SharedArrayBuffer: 'readonly',
++  },
++  root: true,
++  env: {
++    node: true,
++    jest: true,
++  },
++  ignorePatterns: ['.eslintrc.js'],
++  rules: {
++    '@typescript-eslint/interface-name-prefix': 'off',
++    '@typescript-eslint/explicit-function-return-type': 'off',
++    '@typescript-eslint/explicit-module-boundary-types': 'off',
++    '@typescript-eslint/no-explicit-any': 'off',
++    '@typescript-eslint/no-empty-function': 'off',
++    '@typescript-eslint/no-non-null-assertion': 'off',
++    '@typescript-eslint/no-unused-vars': 'error',
++    'import/first': 'error',
++    'import/no-duplicates': 'error',
++    'simple-import-sort/imports': 'error',
++    'simple-import-sort/exports': 'error',
++    '@typescript-eslint/no-empty-object-type': 'off',
++    '@typescript-eslint/no-wrapper-object-types': 'off',
++    '@typescript-eslint/no-unused-expressions': 'off',
++    'prettier/prettier': ['error', { endOfLine: 'auto' }],
++  },
++};
+diff --git a/.prettierrc.cjs b/.prettierrc.cjs
+new file mode 100644
+index 00000000..f55f3f06
+--- /dev/null
++++ b/.prettierrc.cjs
+@@ -0,0 +1,12 @@
++module.exports = {
++  semi: true,
++  trailingComma: 'all',
++  singleQuote: true,
++  printWidth: 120,
++  arrowParens: 'always',
++  tabWidth: 2,
++  useTabs: false,
++  bracketSameLine: false,
++  bracketSpacing: true,
++  parser: 'typescript'
++}
+\ No newline at end of file
+diff --git a/commitlint.config.cjs b/commitlint.config.cjs
+new file mode 100644
+index 00000000..9beb860b
+--- /dev/null
++++ b/commitlint.config.cjs
+@@ -0,0 +1,34 @@
++module.exports = {
++  extends: ['@commitlint/config-conventional'],
++  rules: {
++    'type-enum': [
++      2,
++      'always',
++      [
++        'feat',     // New feature
++        'fix',      // Bug fix
++        'docs',     // Documentation changes
++        'style',    // Code style changes (formatting, etc)
++        'refactor', // Code refactoring
++        'perf',     // Performance improvements
++        'test',     // Adding or updating tests
++        'chore',    // Maintenance tasks
++        'ci',       // CI/CD changes
++        'build',    // Build system changes
++        'revert',   // Reverting changes
++        'security', // Security fixes
++      ],
++    ],
++    'type-case': [2, 'always', 'lower-case'],
++    'type-empty': [2, 'never'],
++    'scope-case': [2, 'always', 'lower-case'],
++    'subject-case': [2, 'never', ['sentence-case', 'start-case', 'pascal-case', 'upper-case']],
++    'subject-empty': [2, 'never'],
++    'subject-full-stop': [2, 'never', '.'],
++    'header-max-length': [2, 'always', 100],
++    'body-leading-blank': [1, 'always'],
++    'body-max-line-length': [0, 'always', 150],
++    'footer-leading-blank': [1, 'always'],
++    'footer-max-line-length': [0, 'always', 150],
++  },
++};
+-- 
+2.43.0
+
+
+From a486398b249a271fe774f98f18dacdbb0c2fb521 Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:27:03 +0000
+Subject: [PATCH 02/13] build: remove old CommonJS config files
+
+---
+ .eslintrc.js         | 39 ---------------------------------------
+ .prettierrc.js       | 12 ------------
+ commitlint.config.js | 34 ----------------------------------
+ 3 files changed, 85 deletions(-)
+ delete mode 100644 .eslintrc.js
+ delete mode 100644 .prettierrc.js
+ delete mode 100644 commitlint.config.js
+
+diff --git a/.eslintrc.js b/.eslintrc.js
+deleted file mode 100644
+index 8f54a776..00000000
+--- a/.eslintrc.js
++++ /dev/null
+@@ -1,39 +0,0 @@
+-module.exports = {
+-  parser: '@typescript-eslint/parser',
+-  parserOptions: {
+-    project: 'tsconfig.json',
+-    tsconfigRootDir: __dirname,
+-    sourceType: 'module',
+-    warnOnUnsupportedTypeScriptVersion: false,
+-    EXPERIMENTAL_useSourceOfProjectReferenceRedirect: true,
+-  },
+-  plugins: ['@typescript-eslint', 'simple-import-sort', 'import'],
+-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'],
+-  globals: {
+-    Atomics: 'readonly',
+-    SharedArrayBuffer: 'readonly',
+-  },
+-  root: true,
+-  env: {
+-    node: true,
+-    jest: true,
+-  },
+-  ignorePatterns: ['.eslintrc.js'],
+-  rules: {
+-    '@typescript-eslint/interface-name-prefix': 'off',
+-    '@typescript-eslint/explicit-function-return-type': 'off',
+-    '@typescript-eslint/explicit-module-boundary-types': 'off',
+-    '@typescript-eslint/no-explicit-any': 'off',
+-    '@typescript-eslint/no-empty-function': 'off',
+-    '@typescript-eslint/no-non-null-assertion': 'off',
+-    '@typescript-eslint/no-unused-vars': 'error',
+-    'import/first': 'error',
+-    'import/no-duplicates': 'error',
+-    'simple-import-sort/imports': 'error',
+-    'simple-import-sort/exports': 'error',
+-    '@typescript-eslint/no-empty-object-type': 'off',
+-    '@typescript-eslint/no-wrapper-object-types': 'off',
+-    '@typescript-eslint/no-unused-expressions': 'off',
+-    'prettier/prettier': ['error', { endOfLine: 'auto' }],
+-  },
+-};
+diff --git a/.prettierrc.js b/.prettierrc.js
+deleted file mode 100644
+index f55f3f06..00000000
+--- a/.prettierrc.js
++++ /dev/null
+@@ -1,12 +0,0 @@
+-module.exports = {
+-  semi: true,
+-  trailingComma: 'all',
+-  singleQuote: true,
+-  printWidth: 120,
+-  arrowParens: 'always',
+-  tabWidth: 2,
+-  useTabs: false,
+-  bracketSameLine: false,
+-  bracketSpacing: true,
+-  parser: 'typescript'
+-}
+\ No newline at end of file
+diff --git a/commitlint.config.js b/commitlint.config.js
+deleted file mode 100644
+index 9beb860b..00000000
+--- a/commitlint.config.js
++++ /dev/null
+@@ -1,34 +0,0 @@
+-module.exports = {
+-  extends: ['@commitlint/config-conventional'],
+-  rules: {
+-    'type-enum': [
+-      2,
+-      'always',
+-      [
+-        'feat',     // New feature
+-        'fix',      // Bug fix
+-        'docs',     // Documentation changes
+-        'style',    // Code style changes (formatting, etc)
+-        'refactor', // Code refactoring
+-        'perf',     // Performance improvements
+-        'test',     // Adding or updating tests
+-        'chore',    // Maintenance tasks
+-        'ci',       // CI/CD changes
+-        'build',    // Build system changes
+-        'revert',   // Reverting changes
+-        'security', // Security fixes
+-      ],
+-    ],
+-    'type-case': [2, 'always', 'lower-case'],
+-    'type-empty': [2, 'never'],
+-    'scope-case': [2, 'always', 'lower-case'],
+-    'subject-case': [2, 'never', ['sentence-case', 'start-case', 'pascal-case', 'upper-case']],
+-    'subject-empty': [2, 'never'],
+-    'subject-full-stop': [2, 'never', '.'],
+-    'header-max-length': [2, 'always', 100],
+-    'body-leading-blank': [1, 'always'],
+-    'body-max-line-length': [0, 'always', 150],
+-    'footer-leading-blank': [1, 'always'],
+-    'footer-max-line-length': [0, 'always', 150],
+-  },
+-};
+-- 
+2.43.0
+
+
+From 23d5323fa47afff0b17a1e564cebad5d570b2b41 Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:27:07 +0000
+Subject: [PATCH 03/13] feat: migrate project to ES Modules (ESM)
+
+---
+ package.json   | 6 +++---
+ tsconfig.json  | 5 +++--
+ tsup.config.ts | 4 +++-
+ 3 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/package.json b/package.json
+index 009782b7..bcf2ecba 100644
+--- a/package.json
++++ b/package.json
+@@ -3,7 +3,7 @@
+   "version": "2.3.6",
+   "description": "Rest api for communication with WhatsApp",
+   "main": "./dist/main.js",
+-  "type": "commonjs",
++  "type": "module",
+   "scripts": {
+     "build": "tsc --noEmit && tsup",
+     "start": "tsx ./src/main.ts",
+@@ -77,7 +77,7 @@
+     "amqplib": "^0.10.5",
+     "audio-decode": "^2.2.3",
+     "axios": "^1.7.9",
+-    "baileys": "7.0.0-rc.6",
++    "baileys": "^7.0.0-rc.6",
+     "class-validator": "^0.14.1",
+     "compression": "^1.7.5",
+     "cors": "^2.8.5",
+@@ -152,4 +152,4 @@
+     "tsx": "^4.20.5",
+     "typescript": "^5.7.2"
+   }
+-}
++}
+\ No newline at end of file
+diff --git a/tsconfig.json b/tsconfig.json
+index af814134..bc49928a 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -4,7 +4,7 @@
+     "emitDecoratorMetadata": true,
+     "declaration": true,
+     "target": "es2020",
+-    "module": "CommonJS",
++    "module": "ES2020",
+     "rootDir": "./",
+     "resolveJsonModule": true,
+     "removeComments": true,
+@@ -32,6 +32,7 @@
+   "exclude": ["node_modules", "./test", "./dist", "./prisma"],
+   "include": [
+     "src/**/*",
+-    "src/**/*.json"
++    "src/**/*.json",
++    "tsup.config.ts"
+   ]
+ }
+\ No newline at end of file
+diff --git a/tsup.config.ts b/tsup.config.ts
+index f09ecd87..1cd22919 100644
+--- a/tsup.config.ts
++++ b/tsup.config.ts
+@@ -9,7 +9,9 @@ export default defineConfig({
+   sourcemap: true,
+   clean: true,
+   minify: true,
+-  format: ['cjs', 'esm'],
++  format: ['esm'],
++  target: 'es2020',
++  platform: 'node',
+   onSuccess: async () => {
+     cpSync('src/utils/translations', 'dist/translations', { recursive: true });
+   },
+-- 
+2.43.0
+
+
+From 48b6a9d8cf02c48bf8cafa1e8d0b5fed1409e1d4 Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:27:11 +0000
+Subject: [PATCH 04/13] fix: add ESM support for __dirname in i18n utility
+
+---
+ src/utils/i18n.ts | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/utils/i18n.ts b/src/utils/i18n.ts
+index 1e2f8a1b..d7bdc6f6 100644
+--- a/src/utils/i18n.ts
++++ b/src/utils/i18n.ts
+@@ -1,7 +1,11 @@
+ import { ConfigService, Language } from '@config/env.config';
+ import fs from 'fs';
+ import i18next from 'i18next';
+-import path from 'path';
++import path, { dirname } from 'path';
++import { fileURLToPath } from 'url';
++
++const __filename = fileURLToPath(import.meta.url);
++const __dirname = dirname(__filename);
+ 
+ const languages = ['en', 'pt-BR', 'es'];
+ const translationsPath = path.join(__dirname, 'translations');
+-- 
+2.43.0
+
+
+From 5332241141cf7d50cb88d89587a74dc0c8b8184c Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:27:23 +0000
+Subject: [PATCH 05/13] fix: resolve ChatwootClient constructor issue in ESM
+ environment
+
+---
+ .../chatwoot/services/chatwoot.service.ts     | 32 +++++++++++++++----
+ 1 file changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/api/integrations/chatbot/chatwoot/services/chatwoot.service.ts b/src/api/integrations/chatbot/chatwoot/services/chatwoot.service.ts
+index cc2bd9e4..04ff1f74 100644
+--- a/src/api/integrations/chatbot/chatwoot/services/chatwoot.service.ts
++++ b/src/api/integrations/chatbot/chatwoot/services/chatwoot.service.ts
+@@ -9,7 +9,7 @@ import { WAMonitoringService } from '@api/services/monitor.service';
+ import { Events } from '@api/types/wa.types';
+ import { Chatwoot, ConfigService, Database, HttpServer } from '@config/env.config';
+ import { Logger } from '@config/logger.config';
+-import ChatwootClient, {
++import {
+   ChatwootAPIConfig,
+   contact,
+   contact_inboxes,
+@@ -18,7 +18,7 @@ import ChatwootClient, {
+   generic_id,
+   inbox,
+ } from '@figuro/chatwoot-sdk';
+-import { request as chatwootRequest } from '@figuro/chatwoot-sdk/dist/core/request';
++import { request as chatwootRequest } from '@figuro/chatwoot-sdk/dist/core/request.js';
+ import { Chatwoot as ChatwootModel, Contact as ContactModel, Message as MessageModel } from '@prisma/client';
+ import i18next from '@utils/i18n';
+ import { sendTelemetry } from '@utils/sendTelemetry';
+@@ -29,9 +29,13 @@ import FormData from 'form-data';
+ import { Jimp, JimpMime } from 'jimp';
+ import Long from 'long';
+ import mimeTypes from 'mime-types';
++import { createRequire } from 'module';
+ import path from 'path';
+ import { Readable } from 'stream';
+ 
++const require = createRequire(import.meta.url);
++const ChatwootClient = require('@figuro/chatwoot-sdk').default || require('@figuro/chatwoot-sdk');
++
+ interface ChatwootMessage {
+   messageId?: number;
+   inboxId?: number;
+@@ -110,7 +114,14 @@ export class ChatwootService {
+   }
+ 
+   public async create(instance: InstanceDto, data: ChatwootDto) {
+-    await this.waMonitor.waInstances[instance.instanceName].setChatwoot(data);
++    const waInstance = this.waMonitor.waInstances[instance.instanceName];
++
++    if (!waInstance) {
++      this.logger.error(`Instance ${instance.instanceName} not found`);
++      throw new Error(`Instance ${instance.instanceName} not found`);
++    }
++
++    await waInstance.setChatwoot(data);
+ 
+     if (data.autoCreate) {
+       this.logger.log('Auto create chatwoot instance');
+@@ -131,9 +142,16 @@ export class ChatwootService {
+ 
+   public async find(instance: InstanceDto): Promise<ChatwootDto> {
+     try {
+-      return await this.waMonitor.waInstances[instance.instanceName].findChatwoot();
+-    } catch {
+-      this.logger.error('chatwoot not found');
++      const waInstance = this.waMonitor.waInstances[instance.instanceName];
++
++      if (!waInstance) {
++        this.logger.error(`Instance ${instance.instanceName} not found`);
++        return { enabled: null, url: '' };
++      }
++
++      return await waInstance.findChatwoot();
++    } catch (error) {
++      this.logger.error(`chatwoot not found: ${error?.toString()}`);
+       return { enabled: null, url: '' };
+     }
+   }
+@@ -1256,7 +1274,7 @@ export class ChatwootService {
+ 
+   public async receiveWebhook(instance: InstanceDto, body: any) {
+     try {
+-      await new Promise((resolve) => setTimeout(resolve, 500));
++      // Removed fixed 500ms delay to improve response time
+ 
+       const client = await this.clientCw(instance);
+ 
+-- 
+2.43.0
+
+
+From ebc723e705c98482d1632ab2cb14dc7350e573bb Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:27:36 +0000
+Subject: [PATCH 06/13] fix: add .js extension to amqplib import for ESM
+ compatibility
+
+---
+ src/api/integrations/event/rabbitmq/rabbitmq.controller.ts | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/api/integrations/event/rabbitmq/rabbitmq.controller.ts b/src/api/integrations/event/rabbitmq/rabbitmq.controller.ts
+index 3295b12d..9de38dbf 100644
+--- a/src/api/integrations/event/rabbitmq/rabbitmq.controller.ts
++++ b/src/api/integrations/event/rabbitmq/rabbitmq.controller.ts
+@@ -2,7 +2,7 @@ import { PrismaRepository } from '@api/repository/repository.service';
+ import { WAMonitoringService } from '@api/services/monitor.service';
+ import { configService, Log, Rabbitmq } from '@config/env.config';
+ import { Logger } from '@config/logger.config';
+-import * as amqp from 'amqplib/callback_api';
++import * as amqp from 'amqplib/callback_api.js';
+ 
+ import { EmitData, EventController, EventControllerInterface } from '../event.controller';
+ 
+-- 
+2.43.0
+
+
+From 1cc861dfba753fe2c440c000a456cb0656a09e25 Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:27:46 +0000
+Subject: [PATCH 07/13] fix: add improved error handling for instance
+ validation
+
+---
+ src/api/abstract/abstract.router.ts           |  7 ++-
+ .../whatsapp/whatsapp.baileys.service.ts      |  4 +-
+ .../controllers/chatwoot.controller.ts        | 61 ++++++++++---------
+ 3 files changed, 41 insertions(+), 31 deletions(-)
+
+diff --git a/src/api/abstract/abstract.router.ts b/src/api/abstract/abstract.router.ts
+index e8449a8c..bdffb3eb 100644
+--- a/src/api/abstract/abstract.router.ts
++++ b/src/api/abstract/abstract.router.ts
+@@ -59,7 +59,12 @@ export abstract class RouterBroker {
+       throw new BadRequestException(message);
+     }
+ 
+-    return await execute(instance, ref);
++    try {
++      return await execute(instance, ref);
++    } catch (error) {
++      logger.error(`Error executing route: ${error?.message || error}`);
++      throw error;
++    }
+   }
+ 
+   public async groupNoValidate<T>(args: DataValidate<T>) {
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index 1e3bdcf1..8ecd09b0 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -3398,7 +3398,7 @@ export class BaileysStartupService extends ChannelStartupService {
+ 
+     if (normalNumbersNotInCache.length > 0) {
+       this.logger.verbose(`Checking ${normalNumbersNotInCache.length} numbers via Baileys (not found in cache)`);
+-      verify = await this.client.onWhatsApp(...normalNumbersNotInCache);
++      verify = (await this.client.onWhatsApp(...normalNumbersNotInCache)) as any;
+     }
+ 
+     const verifiedUsers = await Promise.all(
+@@ -4709,7 +4709,7 @@ export class BaileysStartupService extends ChannelStartupService {
+   public async baileysGenerateMessageTag() {
+     const response = await this.client.generateMessageTag();
+ 
+-    return response;
++    return response || '';
+   }
+ 
+   public async baileysSignalRepositoryDecryptMessage(jid: string, type: 'pkmsg' | 'msg', ciphertext: string) {
+diff --git a/src/api/integrations/chatbot/chatwoot/controllers/chatwoot.controller.ts b/src/api/integrations/chatbot/chatwoot/controllers/chatwoot.controller.ts
+index 17cdce01..4877fdb3 100644
+--- a/src/api/integrations/chatbot/chatwoot/controllers/chatwoot.controller.ts
++++ b/src/api/integrations/chatbot/chatwoot/controllers/chatwoot.controller.ts
+@@ -17,41 +17,46 @@ export class ChatwootController {
+   ) {}
+ 
+   public async createChatwoot(instance: InstanceDto, data: ChatwootDto) {
+-    if (!this.configService.get<Chatwoot>('CHATWOOT').ENABLED) throw new BadRequestException('Chatwoot is disabled');
+-
+-    if (data?.enabled) {
+-      if (!isURL(data.url, { require_tld: false })) {
+-        throw new BadRequestException('url is not valid');
++    try {
++      if (!this.configService.get<Chatwoot>('CHATWOOT').ENABLED) throw new BadRequestException('Chatwoot is disabled');
++
++      if (data?.enabled) {
++        if (!isURL(data.url, { require_tld: false })) {
++          throw new BadRequestException('url is not valid');
++        }
++
++        if (!data.accountId) {
++          throw new BadRequestException('accountId is required');
++        }
++
++        if (!data.token) {
++          throw new BadRequestException('token is required');
++        }
++
++        if (data.signMsg !== true && data.signMsg !== false) {
++          throw new BadRequestException('signMsg is required');
++        }
++        if (data.signMsg === false) data.signDelimiter = null;
+       }
+ 
+-      if (!data.accountId) {
+-        throw new BadRequestException('accountId is required');
++      if (!data.nameInbox || data.nameInbox === '') {
++        data.nameInbox = instance.instanceName;
+       }
+ 
+-      if (!data.token) {
+-        throw new BadRequestException('token is required');
+-      }
++      const result = await this.chatwootService.create(instance, data);
+ 
+-      if (data.signMsg !== true && data.signMsg !== false) {
+-        throw new BadRequestException('signMsg is required');
+-      }
+-      if (data.signMsg === false) data.signDelimiter = null;
+-    }
++      const urlServer = this.configService.get<HttpServer>('SERVER').URL;
+ 
+-    if (!data.nameInbox || data.nameInbox === '') {
+-      data.nameInbox = instance.instanceName;
+-    }
+-
+-    const result = await this.chatwootService.create(instance, data);
+-
+-    const urlServer = this.configService.get<HttpServer>('SERVER').URL;
+-
+-    const response = {
+-      ...result,
+-      webhook_url: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,
+-    };
++      const response = {
++        ...result,
++        webhook_url: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,
++      };
+ 
+-    return response;
++      return response;
++    } catch (error) {
++      console.error('Error in createChatwoot:', error);
++      throw error;
++    }
+   }
+ 
+   public async findChatwoot(instance: InstanceDto): Promise<ChatwootDto & { webhook_url: string }> {
+-- 
+2.43.0
+
+
+From 973114bede128ac26c7bf3800cc748b86d44c506 Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:28:03 +0000
+Subject: [PATCH 08/13] perf: reduce retry delay from 1000ms to 200ms for
+ faster message processing
+
+---
+ .../integrations/channel/whatsapp/baileysMessage.processor.ts   | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/api/integrations/channel/whatsapp/baileysMessage.processor.ts b/src/api/integrations/channel/whatsapp/baileysMessage.processor.ts
+index c2c5931e..2ad1b28b 100644
+--- a/src/api/integrations/channel/whatsapp/baileysMessage.processor.ts
++++ b/src/api/integrations/channel/whatsapp/baileysMessage.processor.ts
+@@ -29,7 +29,7 @@ export class BaileysMessageProcessor {
+             retryWhen((errors) =>
+               errors.pipe(
+                 tap((error) => this.processorLogs.warn(`Retrying message batch due to error: ${error.message}`)),
+-                delay(1000), // 1 segundo de delay
++                delay(200), // Reduzido para 200ms de delay
+                 take(3), // Máximo 3 tentativas
+               ),
+             ),
+-- 
+2.43.0
+
+
+From ff7fd02f332d7f6642abe6da0f38fdd032faa2b6 Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:28:12 +0000
+Subject: [PATCH 09/13] perf: optimize message delay timing (min: 500ms, max:
+ 8s)
+
+---
+ src/api/integrations/chatbot/base-chatbot.service.ts | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/api/integrations/chatbot/base-chatbot.service.ts b/src/api/integrations/chatbot/base-chatbot.service.ts
+index 11f71b17..e84a0069 100644
+--- a/src/api/integrations/chatbot/base-chatbot.service.ts
++++ b/src/api/integrations/chatbot/base-chatbot.service.ts
+@@ -275,8 +275,8 @@ export abstract class BaseChatbotService<BotType = any, SettingsType = any> {
+     linkPreview: boolean = true,
+   ): Promise<void> {
+     const timePerChar = settings?.timePerChar ?? 0;
+-    const minDelay = 1000;
+-    const maxDelay = 20000;
++    const minDelay = 500; // Reduzido de 1000ms para 500ms
++    const maxDelay = 8000; // Reduzido de 20000ms para 8000ms
+     const delay = Math.min(Math.max(message.length * timePerChar, minDelay), maxDelay);
+ 
+     this.logger.debug(`[BaseChatbot] Sending single message with linkPreview: ${linkPreview}`);
+-- 
+2.43.0
+
+
+From 5cb478f88db4be96f3156abc1f849d3d8f174f0a Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:28:21 +0000
+Subject: [PATCH 10/13] chore: update package-lock.json for ESM migration
+
+---
+ package-lock.json | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/package-lock.json b/package-lock.json
+index c9c50513..ccd25f4b 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -21,7 +21,7 @@
+         "amqplib": "^0.10.5",
+         "audio-decode": "^2.2.3",
+         "axios": "^1.7.9",
+-        "baileys": "7.0.0-rc.6",
++        "baileys": "^7.0.0-rc.6",
+         "class-validator": "^0.14.1",
+         "compression": "^1.7.5",
+         "cors": "^2.8.5",
+@@ -5860,7 +5860,6 @@
+       "resolved": "https://registry.npmjs.org/baileys/-/baileys-7.0.0-rc.6.tgz",
+       "integrity": "sha512-Unt58dy39rFQ3dRgTUxT38/AXWInNLYx9zijU7PpHDeoNdJfvgyROnHLtmh9hAglLKA1t374v1JLnfI5Tk/TSQ==",
+       "hasInstallScript": true,
+-      "license": "MIT",
+       "dependencies": {
+         "@cacheable/node-cache": "^1.4.0",
+         "@hapi/boom": "^9.1.3",
+@@ -11289,7 +11288,6 @@
+       "version": "11.2.2",
+       "resolved": "https://registry.npmjs.org/lru-cache/-/lru-cache-11.2.2.tgz",
+       "integrity": "sha512-F9ODfyqML2coTIsQpSkRHnLSZMtkU8Q+mSfcaIyKwy58u+8k5nvAYeiNhsyMARvzNcXJ9QfWVrcPsC9e9rAxtg==",
+-      "license": "ISC",
+       "engines": {
+         "node": "20 || >=22"
+       }
+@@ -12456,7 +12454,6 @@
+       "version": "9.0.0",
+       "resolved": "https://registry.npmjs.org/p-queue/-/p-queue-9.0.0.tgz",
+       "integrity": "sha512-KO1RyxstL9g1mK76530TExamZC/S2Glm080Nx8PE5sTd7nlduDQsAfEl4uXX+qZjLiwvDauvzXavufy3+rJ9zQ==",
+-      "license": "MIT",
+       "dependencies": {
+         "eventemitter3": "^5.0.1",
+         "p-timeout": "^7.0.0"
+@@ -12472,7 +12469,6 @@
+       "version": "7.0.1",
+       "resolved": "https://registry.npmjs.org/p-timeout/-/p-timeout-7.0.1.tgz",
+       "integrity": "sha512-AxTM2wDGORHGEkPCt8yqxOTMgpfbEHqF51f/5fJCmwFC3C/zNcGT63SymH2ttOAaiIws2zVg4+izQCjrakcwHg==",
+-      "license": "MIT",
+       "engines": {
+         "node": ">=20"
+       },
+-- 
+2.43.0
+
+
+From 2257b566cf0b714edd6ac96bf76496f68e2e404d Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:33:33 +0000
+Subject: [PATCH 11/13] fix: correct broadcast check to use remoteJid for
+ Chatwoot integration
+
+---
+ .../integrations/channel/whatsapp/whatsapp.baileys.service.ts   | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index 8ecd09b0..2bbc2482 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -1207,7 +1207,7 @@ export class BaileysStartupService extends ChannelStartupService {
+           if (
+             this.configService.get<Chatwoot>('CHATWOOT').ENABLED &&
+             this.localChatwoot?.enabled &&
+-            !received.key.id.includes('@broadcast')
++            received.key.remoteJid !== 'status@broadcast'
+           ) {
+             const chatwootSentMessage = await this.chatwootService.eventWhatsapp(
+               Events.MESSAGES_UPSERT,
+-- 
+2.43.0
+
+
+From 15bab7f14a07af4bd4fa0c90abfc8b491dba4941 Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:38:57 +0000
+Subject: [PATCH 12/13] perf: add error handling for Chatwoot database check to
+ prevent delays
+
+---
+ .../chatbot/chatwoot/services/chatwoot.service.ts        | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/api/integrations/chatbot/chatwoot/services/chatwoot.service.ts b/src/api/integrations/chatbot/chatwoot/services/chatwoot.service.ts
+index 04ff1f74..078ac92b 100644
+--- a/src/api/integrations/chatbot/chatwoot/services/chatwoot.service.ts
++++ b/src/api/integrations/chatbot/chatwoot/services/chatwoot.service.ts
+@@ -1027,12 +1027,15 @@ export class ChatwootService {
+     quotedMsg?: MessageModel,
+   ) {
+     if (sourceId && this.isImportHistoryAvailable()) {
+-      const messageAlreadySaved = await chatwootImport.getExistingSourceIds([sourceId], conversationId);
+-      if (messageAlreadySaved) {
+-        if (messageAlreadySaved.size > 0) {
++      try {
++        const messageAlreadySaved = await chatwootImport.getExistingSourceIds([sourceId], conversationId);
++        if (messageAlreadySaved && messageAlreadySaved.size > 0) {
+           this.logger.warn('Message already saved on chatwoot');
+           return null;
+         }
++      } catch (error) {
++        // Ignore database connection errors and continue sending message
++        this.logger.verbose(`Could not check duplicate message (database unavailable): ${error?.message || error}`);
+       }
+     }
+     const data = new FormData();
+-- 
+2.43.0
+
+
+From e62ef3e063ab96192ef3d1b1e24ed805fe0c4b54 Mon Sep 17 00:00:00 2001
+From: Seu Nome <seu.email@exemplo.com>
+Date: Sat, 25 Oct 2025 17:45:36 +0000
+Subject: [PATCH 13/13] perf: reduce keepAliveIntervalMs to prevent WebSocket
+ connection timeout
+
+---
+ .../integrations/channel/whatsapp/whatsapp.baileys.service.ts | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+index 2bbc2482..ee18903d 100644
+--- a/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
++++ b/src/api/integrations/channel/whatsapp/whatsapp.baileys.service.ts
+@@ -635,8 +635,8 @@ export class BaileysStartupService extends ChannelStartupService {
+       retryRequestDelayMs: 350,
+       maxMsgRetryCount: 4,
+       fireInitQueries: true,
+-      connectTimeoutMs: 30_000,
+-      keepAliveIntervalMs: 30_000,
++      connectTimeoutMs: 60_000,
++      keepAliveIntervalMs: 10_000,
+       qrTimeout: 45_000,
+       emitOwnEvents: false,
+       shouldIgnoreJid: (jid) => {
+-- 
+2.43.0
+

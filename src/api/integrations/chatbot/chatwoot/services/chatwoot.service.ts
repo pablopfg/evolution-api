@@ -1027,12 +1027,15 @@ export class ChatwootService {
     quotedMsg?: MessageModel,
   ) {
     if (sourceId && this.isImportHistoryAvailable()) {
-      const messageAlreadySaved = await chatwootImport.getExistingSourceIds([sourceId], conversationId);
-      if (messageAlreadySaved) {
-        if (messageAlreadySaved.size > 0) {
+      try {
+        const messageAlreadySaved = await chatwootImport.getExistingSourceIds([sourceId], conversationId);
+        if (messageAlreadySaved && messageAlreadySaved.size > 0) {
           this.logger.warn('Message already saved on chatwoot');
           return null;
         }
+      } catch (error) {
+        // Ignore database connection errors and continue sending message
+        this.logger.verbose(`Could not check duplicate message (database unavailable): ${error?.message || error}`);
       }
     }
     const data = new FormData();

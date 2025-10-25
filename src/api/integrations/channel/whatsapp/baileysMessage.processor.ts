@@ -29,7 +29,7 @@ export class BaileysMessageProcessor {
             retryWhen((errors) =>
               errors.pipe(
                 tap((error) => this.processorLogs.warn(`Retrying message batch due to error: ${error.message}`)),
-                delay(1000), // 1 segundo de delay
+                delay(200), // Reduzido para 200ms de delay
                 take(3), // Máximo 3 tentativas
               ),
             ),

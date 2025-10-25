@@ -195,9 +195,9 @@ npm run start:prod
 
 ## 👥 Autor
 
-- **Nome**: [Seu Nome]
-- **Email**: [seu.email@example.com]
-- **LinkedIn**: [Seu LinkedIn]
+- **Nome**: Cesar Carlos
+- **Email**: cesar.carlos@evolution-api.com
+- **LinkedIn**: https://www.linkedin.com/in/cesar-carlos
 
 ## 📄 Licença
 

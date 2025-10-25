@@ -1207,7 +1207,7 @@ export class BaileysStartupService extends ChannelStartupService {
           if (
             this.configService.get<Chatwoot>('CHATWOOT').ENABLED &&
             this.localChatwoot?.enabled &&
-            !received.key.id.includes('@broadcast')
+            received.key.remoteJid !== 'status@broadcast'
           ) {
             const chatwootSentMessage = await this.chatwootService.eventWhatsapp(
               Events.MESSAGES_UPSERT,

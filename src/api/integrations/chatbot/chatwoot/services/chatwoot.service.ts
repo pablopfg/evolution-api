@@ -9,7 +9,7 @@ import { WAMonitoringService } from '@api/services/monitor.service';
 import { Events } from '@api/types/wa.types';
 import { Chatwoot, ConfigService, Database, HttpServer } from '@config/env.config';
 import { Logger } from '@config/logger.config';
-import ChatwootClient, {
+import {
   ChatwootAPIConfig,
   contact,
   contact_inboxes,
@@ -18,7 +18,7 @@ import ChatwootClient, {
   generic_id,
   inbox,
 } from '@figuro/chatwoot-sdk';
-import { request as chatwootRequest } from '@figuro/chatwoot-sdk/dist/core/request';
+import { request as chatwootRequest } from '@figuro/chatwoot-sdk/dist/core/request.js';
 import { Chatwoot as ChatwootModel, Contact as ContactModel, Message as MessageModel } from '@prisma/client';
 import i18next from '@utils/i18n';
 import { sendTelemetry } from '@utils/sendTelemetry';
@@ -29,8 +29,12 @@ import FormData from 'form-data';
 import { Jimp, JimpMime } from 'jimp';
 import Long from 'long';
 import mimeTypes from 'mime-types';
+import { createRequire } from 'module';
 import path from 'path';
 import { Readable } from 'stream';
+
+const require = createRequire(import.meta.url);
+const ChatwootClient = require('@figuro/chatwoot-sdk').default || require('@figuro/chatwoot-sdk');
 
 interface ChatwootMessage {
   messageId?: number;
@@ -110,7 +114,14 @@ export class ChatwootService {
   }
 
   public async create(instance: InstanceDto, data: ChatwootDto) {
-    await this.waMonitor.waInstances[instance.instanceName].setChatwoot(data);
+    const waInstance = this.waMonitor.waInstances[instance.instanceName];
+
+    if (!waInstance) {
+      this.logger.error(`Instance ${instance.instanceName} not found`);
+      throw new Error(`Instance ${instance.instanceName} not found`);
+    }
+
+    await waInstance.setChatwoot(data);
 
     if (data.autoCreate) {
       this.logger.log('Auto create chatwoot instance');
@@ -131,9 +142,16 @@ export class ChatwootService {
 
   public async find(instance: InstanceDto): Promise<ChatwootDto> {
     try {
-      return await this.waMonitor.waInstances[instance.instanceName].findChatwoot();
-    } catch {
-      this.logger.error('chatwoot not found');
+      const waInstance = this.waMonitor.waInstances[instance.instanceName];
+
+      if (!waInstance) {
+        this.logger.error(`Instance ${instance.instanceName} not found`);
+        return { enabled: null, url: '' };
+      }
+
+      return await waInstance.findChatwoot();
+    } catch (error) {
+      this.logger.error(`chatwoot not found: ${error?.toString()}`);
       return { enabled: null, url: '' };
     }
   }
@@ -1256,7 +1274,7 @@ export class ChatwootService {
 
   public async receiveWebhook(instance: InstanceDto, body: any) {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Removed fixed 500ms delay to improve response time
 
       const client = await this.clientCw(instance);
 

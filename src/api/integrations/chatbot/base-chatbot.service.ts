@@ -275,8 +275,8 @@ export abstract class BaseChatbotService<BotType = any, SettingsType = any> {
     linkPreview: boolean = true,
   ): Promise<void> {
     const timePerChar = settings?.timePerChar ?? 0;
-    const minDelay = 1000;
-    const maxDelay = 20000;
+    const minDelay = 500; // Reduzido de 1000ms para 500ms
+    const maxDelay = 8000; // Reduzido de 20000ms para 8000ms
     const delay = Math.min(Math.max(message.length * timePerChar, minDelay), maxDelay);
 
     this.logger.debug(`[BaseChatbot] Sending single message with linkPreview: ${linkPreview}`);

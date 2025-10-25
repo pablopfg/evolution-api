@@ -3,7 +3,7 @@
   "version": "2.3.6",
   "description": "Rest api for communication with WhatsApp",
   "main": "./dist/main.js",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "build": "tsc --noEmit && tsup",
     "start": "tsx ./src/main.ts",
@@ -77,7 +77,7 @@
     "amqplib": "^0.10.5",
     "audio-decode": "^2.2.3",
     "axios": "^1.7.9",
-    "baileys": "7.0.0-rc.6",
+    "baileys": "^7.0.0-rc.6",
     "class-validator": "^0.14.1",
     "compression": "^1.7.5",
     "cors": "^2.8.5",

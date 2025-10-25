@@ -47,12 +47,10 @@ export class ChatwootController {
 
       const urlServer = this.configService.get<HttpServer>('SERVER').URL;
 
-      const response = {
+      return {
         ...result,
         webhook_url: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,
       };
-
-      return response;
     } catch (error) {
       console.error('Error in createChatwoot:', error);
       throw error;
@@ -78,12 +76,10 @@ export class ChatwootController {
       };
     }
 
-    const response = {
+    return {
       ...result,
       webhook_url: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,
     };
-
-    return response;
   }
 
   public async receiveWebhook(instance: InstanceDto, data: any) {

@@ -59,7 +59,12 @@ export abstract class RouterBroker {
       throw new BadRequestException(message);
     }
 
-    return await execute(instance, ref);
+    try {
+      return await execute(instance, ref);
+    } catch (error) {
+      logger.error(`Error executing route: ${error?.message || error}`);
+      throw error;
+    }
   }
 
   public async groupNoValidate<T>(args: DataValidate<T>) {

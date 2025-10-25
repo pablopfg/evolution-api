@@ -3398,7 +3398,7 @@ export class BaileysStartupService extends ChannelStartupService {
 
     if (normalNumbersNotInCache.length > 0) {
       this.logger.verbose(`Checking ${normalNumbersNotInCache.length} numbers via Baileys (not found in cache)`);
-      verify = await this.client.onWhatsApp(...normalNumbersNotInCache);
+      verify = (await this.client.onWhatsApp(...normalNumbersNotInCache)) as any;
     }
 
     const verifiedUsers = await Promise.all(
@@ -4709,7 +4709,7 @@ export class BaileysStartupService extends ChannelStartupService {
   public async baileysGenerateMessageTag() {
     const response = await this.client.generateMessageTag();
 
-    return response;
+    return response || '';
   }
 
   public async baileysSignalRepositoryDecryptMessage(jid: string, type: 'pkmsg' | 'msg', ciphertext: string) {

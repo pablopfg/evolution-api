@@ -17,41 +17,44 @@ export class ChatwootController {
   ) {}
 
   public async createChatwoot(instance: InstanceDto, data: ChatwootDto) {
-    if (!this.configService.get<Chatwoot>('CHATWOOT').ENABLED) throw new BadRequestException('Chatwoot is disabled');
+    try {
+      if (!this.configService.get<Chatwoot>('CHATWOOT').ENABLED) throw new BadRequestException('Chatwoot is disabled');
 
-    if (data?.enabled) {
-      if (!isURL(data.url, { require_tld: false })) {
-        throw new BadRequestException('url is not valid');
+      if (data?.enabled) {
+        if (!isURL(data.url, { require_tld: false })) {
+          throw new BadRequestException('url is not valid');
+        }
+
+        if (!data.accountId) {
+          throw new BadRequestException('accountId is required');
+        }
+
+        if (!data.token) {
+          throw new BadRequestException('token is required');
+        }
+
+        if (data.signMsg !== true && data.signMsg !== false) {
+          throw new BadRequestException('signMsg is required');
+        }
+        if (data.signMsg === false) data.signDelimiter = null;
       }
 
-      if (!data.accountId) {
-        throw new BadRequestException('accountId is required');
+      if (!data.nameInbox || data.nameInbox === '') {
+        data.nameInbox = instance.instanceName;
       }
 
-      if (!data.token) {
-        throw new BadRequestException('token is required');
-      }
+      const result = await this.chatwootService.create(instance, data);
 
-      if (data.signMsg !== true && data.signMsg !== false) {
-        throw new BadRequestException('signMsg is required');
-      }
-      if (data.signMsg === false) data.signDelimiter = null;
+      const urlServer = this.configService.get<HttpServer>('SERVER').URL;
+
+      return {
+        ...result,
+        webhook_url: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,
+      };
+    } catch (error) {
+      console.error('Error in createChatwoot:', error);
+      throw error;
     }
-
-    if (!data.nameInbox || data.nameInbox === '') {
-      data.nameInbox = instance.instanceName;
-    }
-
-    const result = await this.chatwootService.create(instance, data);
-
-    const urlServer = this.configService.get<HttpServer>('SERVER').URL;
-
-    const response = {
-      ...result,
-      webhook_url: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,
-    };
-
-    return response;
   }
 
   public async findChatwoot(instance: InstanceDto): Promise<ChatwootDto & { webhook_url: string }> {
@@ -73,12 +76,10 @@ export class ChatwootController {
       };
     }
 
-    const response = {
+    return {
       ...result,
       webhook_url: `${urlServer}/chatwoot/webhook/${encodeURIComponent(instance.instanceName)}`,
     };
-
-    return response;
   }
 
   public async receiveWebhook(instance: InstanceDto, data: any) {

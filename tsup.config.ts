@@ -9,7 +9,9 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   minify: true,
-  format: ['cjs', 'esm'],
+  format: ['esm'],
+  target: 'es2020',
+  platform: 'node',
   onSuccess: async () => {
     cpSync('src/utils/translations', 'dist/translations', { recursive: true });
   },

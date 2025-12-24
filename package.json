@@ -119,7 +119,7 @@
     "rxjs": "^7.8.2",
     "sharp": "^0.34.5",
     "socket.io": "^4.8.2",
-    "socket.io-client": "^4.8.2",
+    "socket.io-client": "^4.8.3",
     "socks-proxy-agent": "^8.0.5",
     "undici": "^7.16.0",
     "swagger-ui-express": "^5.0.1",

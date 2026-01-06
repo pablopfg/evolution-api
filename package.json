@@ -121,7 +121,7 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "socks-proxy-agent": "^8.0.5",
-    "undici": "^7.18.0",
+    "undici": "^7.18.1",
     "swagger-ui-express": "^5.0.1",
     "tsup": "^8.5.1",
     "uuid": "^13.0.0"

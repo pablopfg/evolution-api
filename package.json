@@ -81,7 +81,7 @@
     "baileys": "^7.0.0-rc.9",
     "class-validator": "^0.14.3",
     "compression": "^1.7.5",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "emoji-regex": "^10.6.0",

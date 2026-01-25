@@ -158,7 +158,7 @@
   "overrides": {
     "axios": "^1.13.1",
     "glob": "^10.5.0",
-    "lodash": "4.17.21",
+    "lodash": "4.17.23",
     "minimist": "1.2.8",
     "merge": "2.1.1",
     "braces": "3.0.3",

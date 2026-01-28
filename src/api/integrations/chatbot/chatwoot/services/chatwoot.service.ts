@@ -49,6 +49,10 @@ export class ChatwootService {
 
   private provider: any;
 
+  // Cache para deduplicação de orderMessage (evita mensagens duplicadas)
+  private processedOrderIds: Map<string, number> = new Map();
+  private readonly ORDER_CACHE_TTL_MS = 30000; // 30 segundos
+
   constructor(
     private readonly waMonitor: WAMonitoringService,
     private readonly configService: ConfigService,
@@ -346,6 +350,16 @@ export class ChatwootService {
 
       return contact;
     } catch (error) {
+      if ((error.status === 422 || error.response?.status === 422) && jid) {
+        this.logger.warn(`Contact with identifier ${jid} creation failed (422). Checking if it already exists...`);
+        const existingContact = await this.findContactByIdentifier(instance, jid);
+        if (existingContact) {
+          const contactId = existingContact.id;
+          await this.addLabelToContact(this.provider.nameInbox, contactId);
+          return existingContact;
+        }
+      }
+
       this.logger.error('Error creating contact');
       console.log(error);
       return null;
@@ -413,6 +427,55 @@ export class ChatwootService {
     } catch {
       return false;
     }
+  }
+
+  public async findContactByIdentifier(instance: InstanceDto, identifier: string) {
+    const client = await this.clientCw(instance);
+
+    if (!client) {
+      this.logger.warn('client not found');
+      return null;
+    }
+
+    // Direct search by query (q) - most common way to search by identifier/email/phone
+    const contact = (await (client as any).get('contacts/search', {
+      params: {
+        q: identifier,
+        sort: 'name',
+      },
+    })) as any;
+
+    if (contact && contact.data && contact.data.payload && contact.data.payload.length > 0) {
+      return contact.data.payload[0];
+    }
+
+    // Fallback for older API versions or different response structures
+    if (contact && contact.payload && contact.payload.length > 0) {
+      return contact.payload[0];
+    }
+
+    // Try search by attribute
+    const contactByAttr = (await (client as any).post('contacts/filter', {
+      payload: [
+        {
+          attribute_key: 'identifier',
+          filter_operator: 'equal_to',
+          values: [identifier],
+          query_operator: null,
+        },
+      ],
+    })) as any;
+
+    if (contactByAttr && contactByAttr.payload && contactByAttr.payload.length > 0) {
+      return contactByAttr.payload[0];
+    }
+
+    // Check inside data property if using axios interceptors wrapper
+    if (contactByAttr && contactByAttr.data && contactByAttr.data.payload && contactByAttr.data.payload.length > 0) {
+      return contactByAttr.data.payload[0];
+    }
+
+    return null;
   }
 
   public async findContact(instance: InstanceDto, phoneNumber: string) {
@@ -1574,7 +1637,11 @@ export class ChatwootService {
     this.logger.verbose(`Update result: ${result} rows affected`);
 
     if (this.isImportHistoryAvailable()) {
-      chatwootImport.updateMessageSourceID(chatwootMessageIds.messageId, key.id);
+      try {
+        await chatwootImport.updateMessageSourceID(chatwootMessageIds.messageId, key.id);
+      } catch (error) {
+        this.logger.error(`Error updating Chatwoot message source ID: ${error}`);
+      }
     }
   }
 
@@ -1695,39 +1762,90 @@ export class ChatwootService {
   }
 
   private getTypeMessage(msg: any) {
-    const types = {
-      conversation: msg.conversation,
-      imageMessage: msg.imageMessage?.caption,
-      videoMessage: msg.videoMessage?.caption,
-      extendedTextMessage: msg.extendedTextMessage?.text,
-      messageContextInfo: msg.messageContextInfo?.stanzaId,
-      stickerMessage: undefined,
-      documentMessage: msg.documentMessage?.caption,
-      documentWithCaptionMessage: msg.documentWithCaptionMessage?.message?.documentMessage?.caption,
-      audioMessage: msg.audioMessage ? (msg.audioMessage.caption ?? '') : undefined,
-      contactMessage: msg.contactMessage?.vcard,
-      contactsArrayMessage: msg.contactsArrayMessage,
-      locationMessage: msg.locationMessage,
-      liveLocationMessage: msg.liveLocationMessage,
-      listMessage: msg.listMessage,
-      listResponseMessage: msg.listResponseMessage,
-      viewOnceMessageV2:
-        msg?.message?.viewOnceMessageV2?.message?.imageMessage?.url ||
-        msg?.message?.viewOnceMessageV2?.message?.videoMessage?.url ||
-        msg?.message?.viewOnceMessageV2?.message?.audioMessage?.url,
-    };
+  const types = {
+    conversation: msg.conversation,
+    imageMessage: msg.imageMessage?.caption,
+    videoMessage: msg.videoMessage?.caption,
+    extendedTextMessage: msg.extendedTextMessage?.text,
+    messageContextInfo: msg.messageContextInfo?.stanzaId,
+    stickerMessage: undefined,
+    documentMessage: msg.documentMessage?.caption,
+    documentWithCaptionMessage: msg.documentWithCaptionMessage?.message?.documentMessage?.caption,
+    audioMessage: msg.audioMessage ? (msg.audioMessage.caption ?? '') : undefined,
+    contactMessage: msg.contactMessage?.vcard,
+    contactsArrayMessage: msg.contactsArrayMessage,
+    locationMessage: msg.locationMessage,
+    liveLocationMessage: msg.liveLocationMessage,
+    listMessage: msg.listMessage,
+    listResponseMessage: msg.listResponseMessage,
+    orderMessage: msg.orderMessage,
+    viewOnceMessageV2:
+      msg?.message?.viewOnceMessageV2?.message?.imageMessage?.url ||
+      msg?.message?.viewOnceMessageV2?.message?.videoMessage?.url ||
+      msg?.message?.viewOnceMessageV2?.message?.audioMessage?.url,
+  };
 
-    return types;
-  }
+  return types;
+}
 
   private getMessageContent(types: any) {
     const typeKey = Object.keys(types).find((key) => types[key] !== undefined);
 
     let result = typeKey ? types[typeKey] : undefined;
 
-    // Remove externalAdReplyBody| in Chatwoot (Already Have)
+    // Remove externalAdReplyBody| in Chatwoot
     if (result && typeof result === 'string' && result.includes('externalAdReplyBody|')) {
       result = result.split('externalAdReplyBody|').filter(Boolean).join('');
+    }
+
+    // Tratamento de Pedidos do Catálogo (WhatsApp Business Catalog)
+    if (typeKey === 'orderMessage' && result.orderId) {
+      const now = Date.now();
+      // Limpa entradas antigas do cache
+      this.processedOrderIds.forEach((timestamp, id) => {
+        if (now - timestamp > this.ORDER_CACHE_TTL_MS) {
+          this.processedOrderIds.delete(id);
+        }
+      });
+      // Verifica se já processou este orderId
+      if (this.processedOrderIds.has(result.orderId)) {
+        return undefined; // Ignora duplicado
+      }
+      this.processedOrderIds.set(result.orderId, now);
+    }
+    if (typeKey === 'orderMessage') {
+      // Extrai o valor - pode ser Long, objeto {low, high}, ou número direto
+      let rawPrice = 0;
+      const amount = result.totalAmount1000;
+
+      if (Long.isLong(amount)) {
+        rawPrice = amount.toNumber();
+      } else if (amount && typeof amount === 'object' && 'low' in amount) {
+        // Formato {low: number, high: number, unsigned: boolean}
+        rawPrice = Long.fromValue(amount).toNumber();
+      } else if (typeof amount === 'number') {
+        rawPrice = amount;
+      }
+
+      const price = (rawPrice / 1000).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: result.totalCurrencyCode || 'BRL',
+      });
+
+      const itemCount = result.itemCount || 1;
+      const orderTitle = result.orderTitle || 'Produto do catálogo';
+      const orderId = result.orderId || 'N/A';
+
+      return (
+        `🛒 *NOVO PEDIDO NO CATÁLOGO*\n` +
+        `━━━━━━━━━━━━━━━━━━━━━\n` +
+        `📦 *Produto:* ${orderTitle}\n` +
+        `📊 *Quantidade:* ${itemCount}\n` +
+        `💰 *Total:* ${price}\n` +
+        `🆔 *Pedido:* #${orderId}\n` +
+        `━━━━━━━━━━━━━━━━━━━━━\n` +
+        `_Responda para atender este pedido!_`
+      );
     }
 
     if (typeKey === 'locationMessage' || typeKey === 'liveLocationMessage') {
@@ -2024,7 +2142,7 @@ export class ChatwootService {
           if (body.key.remoteJid.includes('@g.us')) {
             const participantName = body.pushName;
             const rawPhoneNumber =
-              body.key.addressingMode === 'lid' && !body.key.fromMe
+              body.key.addressingMode === 'lid' && !body.key.fromMe && body.key.participantAlt
                 ? body.key.participantAlt.split('@')[0].split(':')[0]
                 : body.key.participant.split('@')[0].split(':')[0];
             const formattedPhoneNumber = parsePhoneNumberFromString(`+${rawPhoneNumber}`).formatInternational();
@@ -2206,7 +2324,7 @@ export class ChatwootService {
         if (body.key.remoteJid.includes('@g.us')) {
           const participantName = body.pushName;
           const rawPhoneNumber =
-            body.key.addressingMode === 'lid' && !body.key.fromMe
+            body.key.addressingMode === 'lid' && !body.key.fromMe && body.key.participantAlt
               ? body.key.participantAlt.split('@')[0].split(':')[0]
               : body.key.participant.split('@')[0].split(':')[0];
           const formattedPhoneNumber = parsePhoneNumberFromString(`+${rawPhoneNumber}`).formatInternational();
@@ -2464,7 +2582,13 @@ export class ChatwootService {
     }
   }
 
-  public getNumberFromRemoteJid(remoteJid: string) {
+  public normalizeJidIdentifier(remoteJid: string) {
+    if (!remoteJid) {
+      return '';
+    }
+    if (remoteJid.includes('@lid')) {
+      return remoteJid;
+    }
     return remoteJid.replace(/:\d+/, '').split('@')[0];
   }
 

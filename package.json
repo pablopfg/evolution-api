@@ -73,11 +73,11 @@
     "@paralleldrive/cuid2": "^3.3.0",
     "@prisma/client": "^6.19.2",
     "@sentry/node": "^10.38.0",
-    "@types/uuid": "^10.0.0",
     "@types/crypto-js": "^4.2.2",
+    "@types/uuid": "^10.0.0",
     "amqplib": "^0.10.5",
     "audio-decode": "^2.2.3",
-    "axios": "^1.13.2",
+    "axios": "^1.13.4",
     "baileys": "^7.0.0-rc.9",
     "class-validator": "^0.14.3",
     "compression": "^1.7.5",
@@ -121,9 +121,9 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "socks-proxy-agent": "^8.0.5",
-    "undici": "^7.19.2",
     "swagger-ui-express": "^5.0.1",
     "tsup": "^8.5.1",
+    "undici": "^7.19.2",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
@@ -156,8 +156,9 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "axios": "^1.13.2",
+    "axios": "^1.13.4",
     "glob": "^10.5.0",
+    "fast-xml-parser": "^5.3.4",
     "lodash": "4.17.23",
     "minimist": "1.2.8",
     "merge": "2.1.1",

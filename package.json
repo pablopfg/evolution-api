@@ -83,7 +83,7 @@
     "compression": "^1.7.5",
     "cors": "^2.8.6",
     "dayjs": "^1.11.19",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.2.4",
     "emoji-regex": "^10.6.0",
     "eventemitter2": "^6.4.9",
     "express": "^4.22.1",

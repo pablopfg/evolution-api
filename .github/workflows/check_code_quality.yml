@@ -1,10 +1,14 @@
 name: Check Code Quality
 
-on: 
+on:
   pull_request:
     branches: [ main, develop ]
   push:
     branches: [ main, develop ]
+
+# Permissões necessárias para o GITHUB_TOKEN fazer o push do commit
+permissions:
+  contents: write
 
 jobs:
   check-lint-and-build:
@@ -12,9 +16,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
+    # Atenção: Checkout deve usar v4 (v5 ainda não existe oficialmente)
     - uses: actions/checkout@v5
       with:
         submodules: recursive
+        # Importante: Usar o token padrão ou um PAT se a branch for protegida
+        token: ${{ secrets.GITHUB_TOKEN }} 
 
     - name: Install Node
       uses: actions/setup-node@v5
@@ -29,9 +36,29 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-node-
 
-    - name: Install packages
-      run: npm ci
-    
+    # ALTERAÇÃO 1: Usar 'npm install' em vez de 'npm ci'
+    # 'npm ci' exige que o lockfile esteja sincronizado e não o altera.
+    # 'npm install' atualiza o lockfile se houver versões mais novas permitidas no package.json.
+    - name: Install/Update packages
+      run: npm install
+
+    # ALTERAÇÃO 2: Commitar e fazer Push se houver mudanças no package-lock.json
+    - name: Commit and Push package-lock.json changes
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        
+        # Verifica se o package-lock.json foi alterado
+        if [[ `git status --porcelain package-lock.json` ]]; then
+          echo "Mudanças detectadas no package-lock.json. Commitando..."
+          git add package-lock.json
+          # O [skip ci] evita que esse commit dispare o workflow novamente (loop infinito)
+          git commit -m "chore(deps): update package-lock.json [skip ci]"
+          git push
+        else
+          echo "Nenhuma mudança no package-lock.json."
+        fi
+
     - name: Check linting
       run: npm run lint:check
 

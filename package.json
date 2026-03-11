@@ -120,7 +120,7 @@
     "sharp": "^0.34.5",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
-    "socks-proxy-agent": "^8.0.5",
+    "socks-proxy-agent": "^9.0.0",
     "swagger-ui-express": "^5.0.1",
     "tsup": "^8.5.1",
     "undici": "^7.22.0",

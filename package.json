@@ -75,7 +75,7 @@
     "@sentry/node": "^10.46.0",
     "@types/crypto-js": "^4.2.2",
     "@types/uuid": "^10.0.0",
-    "amqplib": "^1.0.2",
+    "amqplib": "^1.0.3",
     "audio-decode": "^2.2.3",
     "axios": "^1.13.6",
     "baileys": "^7.0.0-rc.9",

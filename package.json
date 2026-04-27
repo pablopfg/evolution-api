@@ -77,7 +77,7 @@
     "@types/uuid": "^10.0.0",
     "amqplib": "^1.0.3",
     "audio-decode": "^2.2.3",
-    "axios": "^1.13.6",
+    "axios": "^1.15.2",
     "baileys": "^7.0.0-rc.9",
     "class-validator": "^0.15.1",
     "compression": "^1.7.5",

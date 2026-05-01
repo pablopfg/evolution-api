@@ -72,7 +72,7 @@
     "@hapi/boom": "^10.0.1",
     "@paralleldrive/cuid2": "^3.3.0",
     "@prisma/client": "^6.19.3",
-    "@sentry/node": "^10.50.0",
+    "@sentry/node": "^10.51.0",
     "@types/crypto-js": "^4.2.2",
     "@types/uuid": "^10.0.0",
     "amqplib": "^1.0.3",

@@ -98,7 +98,7 @@
     "jsonwebtoken": "^9.0.3",
     "kafkajs": "^2.2.4",
     "libphonenumber-js": "^1.12.43",
-    "link-preview-js": "^3.2.0",
+    "link-preview-js": "^4.0.1",
     "long": "^5.2.3",
     "mediainfo.js": "^0.3.7",
     "mime": "^4.0.0",

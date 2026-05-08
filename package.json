@@ -78,7 +78,7 @@
     "amqplib": "^1.0.6",
     "audio-decode": "^2.2.3",
     "axios": "^1.13.6",
-    "baileys": "^7.0.0-rc.9",
+    "baileys": "^7.0.0-rc10",
     "class-validator": "^0.15.1",
     "compression": "^1.7.5",
     "cors": "^2.8.6",

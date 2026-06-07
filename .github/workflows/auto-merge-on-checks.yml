@@ -192,27 +192,44 @@ jobs:
             # ------------------------------------------------------------------
             # CASO 4: Todos os checks passaram → Faz o merge
             # ------------------------------------------------------------------
-            if [ "$MERGEABLE" != "MERGEABLE" ]; then
-              echo "⚠️  PR #$PR_NUMBER com checks ok, mas não mergeável: '$MERGEABLE'"
-              echo "   → Possível conflito. Nenhuma ação tomada."
+
+            # UNKNOWN = GitHub ainda calculando mergeabilidade (race condition pós-push).
+            # O cron vai tentar novamente em até 5 minutos.
+            if [ "$MERGEABLE" = "UNKNOWN" ]; then
+              echo "⏳ PR #$PR_NUMBER — mergeabilidade ainda sendo calculada (UNKNOWN). Aguardando próximo ciclo."
               continue
             fi
 
-            echo "✅ Todos os $PASSED checks passaram! Executando merge da PR #$PR_NUMBER..."
+            if [ "$MERGEABLE" != "MERGEABLE" ]; then
+              echo "⚠️  PR #$PR_NUMBER com checks ok, mas não mergeável: '$MERGEABLE'"
+              echo "   → Possível conflito de branch. Nenhuma ação tomada."
+              continue
+            fi
 
+            echo "✅ Todos os $PASSED checks passaram e PR está mergeável!"
+            echo "   Executando merge da PR #$PR_NUMBER (método: $MERGE_METHOD)..."
+
+            # Nota: removido --auto pois ele exige branch protection rules ativas.
+            # Sem essa flag, o merge é executado imediatamente.
+            MERGE_EXIT=0
             MERGE_OUTPUT=$(gh pr merge "$PR_NUMBER" \
               --repo "$REPO" \
               --"$MERGE_METHOD" \
-              --auto \
               --delete-branch 2>&1) || MERGE_EXIT=$?
 
-            if [ "${MERGE_EXIT:-0}" -eq 0 ]; then
+            echo "   Saída: $MERGE_OUTPUT"
+            echo "   Exit code: $MERGE_EXIT"
+
+            if [ "$MERGE_EXIT" -eq 0 ]; then
               echo "🎉 Merge da PR #$PR_NUMBER realizado com sucesso!"
             else
               if echo "$MERGE_OUTPUT" | grep -qi "already merged\|pull request is closed"; then
                 echo "ℹ️  PR #$PR_NUMBER já estava mergeada. Ignorando."
+              elif echo "$MERGE_OUTPUT" | grep -qi "protected branch\|required status\|review required"; then
+                echo "⚠️  PR #$PR_NUMBER bloqueada por branch protection rule."
+                echo "   → Verifique Settings → Branches → Branch protection rules."
               else
-                echo "⚠️  Falha ao mergear PR #$PR_NUMBER — Erro: $MERGE_OUTPUT"
+                echo "⚠️  Falha inesperada ao mergear PR #$PR_NUMBER — Erro: $MERGE_OUTPUT"
               fi
             fi
 

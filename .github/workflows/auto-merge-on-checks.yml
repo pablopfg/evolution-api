@@ -1,0 +1,196 @@
+# =============================================================================
+# GitHub Action: Auto-Merge Pull Request on All Checks Passed
+# Descrição: Monitora PRs abertas e faz merge automaticamente quando todos
+#            os checks obrigatórios passam com sucesso.
+# Disparo: check_suite (completed) + pull_request (opened/synchronized)
+# Permissões: pull-requests: write | contents: write | checks: read
+# =============================================================================
+
+name: Auto-Merge PR on All Checks Passed
+
+on:
+  # Disparado quando qualquer suite de checks finaliza (sucesso ou falha)
+  check_suite:
+    types: [completed]
+
+  # Disparado quando uma PR é aberta ou atualizada com novos commits
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+  # Permite disparar manualmente pelo GitHub UI (útil para debug)
+  workflow_dispatch:
+
+permissions:
+  # Necessário para ler status dos checks e dados da PR
+  pull-requests: write
+  # Necessário para executar o merge no repositório
+  contents: write
+  # Necessário para ler o status dos checks
+  checks: read
+  # Necessário para ler statuses de commits externos (ex: CircleCI, Travis)
+  statuses: read
+
+jobs:
+  auto-merge:
+    name: Auto-Merge on All Checks Passed
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------------------
+      # STEP 1: Checkout mínimo do repositório (necessário para usar a CLI gh)
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # STEP 2: Aguarda estabilização dos checks
+      # Evita race condition entre o evento disparador e os checks chegarem
+      # à API do GitHub. 10 segundos é um buffer seguro para a maioria dos casos.
+      # ------------------------------------------------------------------
+      - name: Wait for checks to stabilize
+        run: sleep 10
+
+      # ------------------------------------------------------------------
+      # STEP 3: Busca todas as PRs abertas e tenta fazer merge nas elegíveis
+      # Lógica central do workflow — veja comentários inline.
+      # ------------------------------------------------------------------
+      - name: Check and auto-merge eligible PRs
+        env:
+          # GH_TOKEN é o token padrão injetado pelo GitHub Actions.
+          # Tem as permissões declaradas no bloco `permissions` acima.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+          # Owner e repo extraídos automaticamente do contexto do workflow
+          REPO: ${{ github.repository }}
+
+          # Estratégia de merge: squash | merge | rebase
+          # - squash:  colapsa todos os commits da PR em um único commit na main
+          # - merge:   cria um merge commit (mantém histórico completo)
+          # - rebase:  re-aplica commits da PR em cima da branch base (histórico linear)
+          MERGE_METHOD: squash
+
+        run: |
+          set -euo pipefail
+
+          echo "🔍 Buscando Pull Requests abertas em: $REPO"
+
+          # Busca todas as PRs abertas via GitHub CLI e retorna em JSON
+          PRS=$(gh pr list \
+            --repo "$REPO" \
+            --state open \
+            --json number,title,headRefName,baseRefName,mergeable,reviewDecision,url \
+            --limit 100)
+
+          TOTAL=$(echo "$PRS" | jq 'length')
+          echo "📋 Total de PRs abertas encontradas: $TOTAL"
+
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "ℹ️ Nenhuma PR aberta encontrada. Encerrando."
+            exit 0
+          fi
+
+          # Itera sobre cada PR aberta
+          echo "$PRS" | jq -c '.[]' | while read -r PR; do
+            PR_NUMBER=$(echo "$PR" | jq -r '.number')
+            PR_TITLE=$(echo "$PR"  | jq -r '.title')
+            PR_URL=$(echo "$PR"    | jq -r '.url')
+            MERGEABLE=$(echo "$PR" | jq -r '.mergeable')
+
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🔎 Analisando PR #$PR_NUMBER: $PR_TITLE"
+            echo "   URL: $PR_URL"
+            echo "   Mergeável: $MERGEABLE"
+
+            # ------------------------------------------------------------------
+            # VALIDAÇÃO 1: Estado de mergeabilidade da PR
+            # MERGEABLE pode ser: MERGEABLE | CONFLICTING | UNKNOWN
+            # UNKNOWN pode ocorrer logo após um push — a API ainda está calculando.
+            # ------------------------------------------------------------------
+            if [ "$MERGEABLE" != "MERGEABLE" ]; then
+              echo "⚠️  PR #$PR_NUMBER ignorada — estado de merge: '$MERGEABLE'"
+              echo "   → Possível conflito ou estado ainda sendo calculado pelo GitHub."
+              continue
+            fi
+
+            # ------------------------------------------------------------------
+            # VALIDAÇÃO 2: Coleta o status consolidado de todos os checks da PR
+            # Usa a SHA do commit mais recente da PR para checar o estado dos checks.
+            # ------------------------------------------------------------------
+            PR_DETAIL=$(gh pr view "$PR_NUMBER" \
+              --repo "$REPO" \
+              --json commits,statusCheckRollup)
+
+            # Pega a SHA do commit mais recente da PR
+            HEAD_SHA=$(echo "$PR_DETAIL" | jq -r '.commits[-1].oid')
+            echo "   HEAD SHA: $HEAD_SHA"
+
+            # statusCheckRollup agrega TODOS os checks: GitHub Actions, status externos, etc.
+            # Estado consolidado pode ser: SUCCESS | FAILURE | PENDING | ERROR | NEUTRAL | STALE
+            CHECK_ROLLUP=$(echo "$PR_DETAIL" | jq -r '.statusCheckRollup // empty')
+
+            if [ -z "$CHECK_ROLLUP" ]; then
+              echo "⚠️  PR #$PR_NUMBER ignorada — nenhum check configurado ou dados indisponíveis."
+              continue
+            fi
+
+            # Conta checks em cada estado
+            TOTAL_CHECKS=$(echo "$CHECK_ROLLUP" | jq 'length')
+            PENDING=$(echo "$CHECK_ROLLUP" | jq '[.[] | select(.state == "PENDING" or .state == "IN_PROGRESS" or .status == "IN_PROGRESS" or .status == "QUEUED")] | length')
+            FAILED=$(echo "$CHECK_ROLLUP"  | jq '[.[] | select(.state == "FAILURE" or .state == "ERROR" or .conclusion == "FAILURE" or .conclusion == "TIMED_OUT" or .conclusion == "CANCELLED")] | length')
+            PASSED=$(echo "$CHECK_ROLLUP"  | jq '[.[] | select(.state == "SUCCESS" or .conclusion == "SUCCESS")] | length')
+
+            echo "   📊 Checks — Total: $TOTAL_CHECKS | ✅ Passou: $PASSED | ⏳ Pendente: $PENDING | ❌ Falhou: $FAILED"
+
+            # ------------------------------------------------------------------
+            # DECISÃO DE MERGE
+            # Só faz merge se:
+            #   1. Nenhum check está pendente (PENDING=0)
+            #   2. Nenhum check falhou (FAILED=0)
+            #   3. Pelo menos 1 check passou com sucesso (PASSED>0)
+            # ------------------------------------------------------------------
+            if [ "$PENDING" -gt 0 ]; then
+              echo "⏳ PR #$PR_NUMBER ignorada — $PENDING check(s) ainda em execução."
+              continue
+            fi
+
+            if [ "$FAILED" -gt 0 ]; then
+              echo "❌ PR #$PR_NUMBER ignorada — $FAILED check(s) falharam. Nenhuma ação tomada."
+              continue
+            fi
+
+            if [ "$PASSED" -eq 0 ]; then
+              echo "⚠️  PR #$PR_NUMBER ignorada — nenhum check passou (sem dados suficientes)."
+              continue
+            fi
+
+            # ------------------------------------------------------------------
+            # EXECUTA O MERGE
+            # ------------------------------------------------------------------
+            echo "✅ Todos os $PASSED checks passaram! Executando merge da PR #$PR_NUMBER..."
+
+            # Tenta o merge — em caso de erro (ex: outro workflow fez merge antes),
+            # captura a saída e continua sem quebrar o workflow inteiro.
+            MERGE_OUTPUT=$(gh pr merge "$PR_NUMBER" \
+              --repo "$REPO" \
+              --"$MERGE_METHOD" \
+              --auto \
+              --delete-branch 2>&1) || MERGE_EXIT=$?
+
+            if [ "${MERGE_EXIT:-0}" -eq 0 ]; then
+              echo "🎉 Merge da PR #$PR_NUMBER realizado com sucesso!"
+              echo "   Detalhes: $MERGE_OUTPUT"
+            else
+              # Verifica se a falha foi porque a PR já foi mergeada por outro processo
+              if echo "$MERGE_OUTPUT" | grep -qi "already merged\|pull request is closed"; then
+                echo "ℹ️  PR #$PR_NUMBER já estava mergeada. Ignorando."
+              else
+                echo "⚠️  Falha ao mergear PR #$PR_NUMBER — Erro: $MERGE_OUTPUT"
+                # Não usa `exit 1` para não bloquear as próximas PRs da iteração
+              fi
+            fi
+
+          done
+
+          echo ""
+          echo "✅ Processamento de todas as PRs concluído."
